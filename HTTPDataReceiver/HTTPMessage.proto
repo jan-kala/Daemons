@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package anotator;
+
+message HttpMessage {
+    enum type {
+        REQUEST = 0;
+        RESPONSE = 1;
+    }
+}
+
+message InterfaceMessage {
+    required int64 check = 1;
+}
