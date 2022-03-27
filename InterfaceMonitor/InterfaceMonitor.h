@@ -9,9 +9,12 @@
 class InterfaceMonitor
 {
 public:
+    InterfaceMonitor(std::string ifname);
     int run();
 
 private:
+    std::string ifname;
+
     // Packets processing
     struct PacketInfo{
         bool isDesired = false;

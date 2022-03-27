@@ -4,8 +4,13 @@
 
 #include "InterfaceMonitor.h"
 
-int main()
+int main(int argc, char** argv)
 {
-    auto monitor = InterfaceMonitor();
+    if (argc != 2) {
+        std::cerr<<"Please specify interface where to capture packets!"<<std::endl;
+        return 1;
+    }
+    std::string ifname = argv[1];
+    auto monitor = InterfaceMonitor(ifname);
     monitor.run();
 }

@@ -4,13 +4,17 @@
 
 #include <iostream>
 
+InterfaceMonitor::InterfaceMonitor(std::string ifname) {
+    this->ifname = ifname;
+}
+
 void handleSigInt(void* cookie){
     bool* stop = (bool*)cookie;
     *stop = true;
 }
 
 int InterfaceMonitor::run(){
-    pcpp::PcapLiveDevice* device = pcpp::PcapLiveDeviceList::getInstance().getPcapLiveDeviceByName("en0");
+    pcpp::PcapLiveDevice* device = pcpp::PcapLiveDeviceList::getInstance().getPcapLiveDeviceByName(ifname);
     if (device == nullptr)
     {
         std::cerr<< "Cannot find required device" << std::endl;
