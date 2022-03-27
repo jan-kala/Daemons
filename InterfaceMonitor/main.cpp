@@ -1,15 +1,15 @@
 #include "InterfaceMonitor.h"
 #include <iostream>
-#include <IPv4Layer.h>
-#include <Packet.h>
-#include <PcapLiveDeviceList.h>
-#include <SystemUtils.h>
-#include <SSLLayer.h>
-#include <SSLHandshake.h>
-#include <HttpLayer.h>
-#include <TcpLayer.h>
-#include <UdpLayer.h>
-#include "../ProtobufMessages/Out/cpp/HTTPMessage.pb.h"
+#include <pcapplusplus/IPv4Layer.h>
+#include <pcapplusplus/Packet.h>
+#include <pcapplusplus/PcapLiveDeviceList.h>
+#include <pcapplusplus/SystemUtils.h>
+#include <pcapplusplus/SSLLayer.h>
+#include <pcapplusplus/SSLHandshake.h>
+#include <pcapplusplus/HttpLayer.h>
+#include <pcapplusplus/TcpLayer.h>
+#include <pcapplusplus/UdpLayer.h>
+//#include "../ProtobufMessages/Out/cpp/HTTPMessage.pb.h"
 #include <fstream>
 
 #define SEPARATOR ", "
@@ -64,15 +64,15 @@ void printTableRow(struct PrintRowArgument arg)
              << std::endl;
 }
 
-void sendProtobufMessage()
-{
-    anotator::InterfaceMessage msg;
-    msg.set_check(42);
-    std::fstream fd_out("/usr/etc/test", std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!msg.SerializeToOstream(&fd_out)) {
-        std::cerr << "failed to send message" << std::endl;
-    }
-}
+//void sendProtobufMessage()
+//{
+//    anotator::InterfaceMessage msg;
+//    msg.set_check(42);
+//    std::fstream fd_out("/usr/etc/test", std::ios::out | std::ios::trunc | std::ios::binary);
+//    if (!msg.SerializeToOstream(&fd_out)) {
+//        std::cerr << "failed to send message" << std::endl;
+//    }
+//}
 
 static void onPacketArrives(pcpp::RawPacket* packet, pcpp::PcapLiveDevice* dev, void* cookie)
 {
@@ -105,7 +105,7 @@ static void onPacketArrives(pcpp::RawPacket* packet, pcpp::PcapLiveDevice* dev, 
                 http_req->getUrl()
             };
             printTableRow(printArg);
-            sendProtobufMessage();
+//            sendProtobufMessage();
         }
     } 
     else if (parsedPacket.isPacketOfType(pcpp::SSL))
@@ -130,7 +130,7 @@ static void onPacketArrives(pcpp::RawPacket* packet, pcpp::PcapLiveDevice* dev, 
                         ssl_sni->getHostName()
                     };
                     printTableRow(printArg);
-                    sendProtobufMessage();
+//                    sendProtobufMessage();
                 }
                 
             }
@@ -146,7 +146,7 @@ void handleSigInt(void* cookie)
 
 int main(int argc, char* argv[])
 {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
+//    GOOGLE_PROTOBUF_VERIFY_VERSION;
 
     pcpp::PcapLiveDevice* device = pcpp::PcapLiveDeviceList::getInstance().getPcapLiveDeviceByName("en0");
     if (device == nullptr)
