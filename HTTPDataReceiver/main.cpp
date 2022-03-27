@@ -5,7 +5,7 @@
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
-#define LOG_FILE_PATH "log.txt"
+#define LOG_FILE_PATH "/tmp/WebAnnotator/browser.csv"
 
 using namespace nlohmann;
 using namespace google::protobuf::util;
@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 
     while (true) {
         json message = get_native_message();
-        sendProtobufMessage();
+//        sendProtobufMessage();
         logger.csv_log(message["message"]);
     }
     return 0;
