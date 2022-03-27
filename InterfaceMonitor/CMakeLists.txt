@@ -10,7 +10,9 @@ project(InterfaceMonitor)
 #find_package(Protobuf REQUIRED)
 find_package(PcapPlusPlus REQUIRED)
 
-set(CMAKE_CXX_FLAGS "-lpcap -lpthread -framework SystemConfiguration -framework CoreFoundation ${CMAKE_CXX_FLAGS}")
+if (APPLE)
+    set(CMAKE_CXX_FLAGS "-lpcap -lpthread -framework SystemConfiguration -framework CoreFoundation ${CMAKE_CXX_FLAGS}")
+endif (APPLE)
 
 #if(protobuf_VERBOSE)
 #    message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")
