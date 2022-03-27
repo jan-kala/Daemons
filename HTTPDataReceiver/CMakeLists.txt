@@ -7,7 +7,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 project(HTTPDataResender)
 
 # Dependencies
-include(cmake/CPM.cmake)
+include(CMakeModules/CPM.cmake)
 CPMAddPackage(
         NAME nlohmann_json
         GITHUB_REPOSITORY nlohmann/json

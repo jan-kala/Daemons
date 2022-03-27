@@ -1,4 +1,4 @@
-# CPM.cmake - CMake's missing package manager
+# CPM.CMakeModules - CMake's missing package manager
 # ===========================================
 # See https://github.com/cpm-cmake/CPM.cmake for usage and update instructions.
 #
@@ -228,7 +228,7 @@ function(cpm_find_package NAME VERSION)
   endif()
 endfunction()
 
-# Create a custom FindXXX.cmake module for a CPM package This prevents `find_package(NAME)` from
+# Create a custom FindXXX.CMakeModules module for a CPM package This prevents `find_package(NAME)` from
 # finding the system library
 function(cpm_create_module_file Name)
   if(NOT CPM_DONT_UPDATE_MODULE_PATH)

@@ -5,8 +5,7 @@ include /usr/local/etc/PcapPlusPlus.mk
 SOURCES := $(wildcard main.cpp)
 OBJS_FILENAMES := $(patsubst %.cpp,Obj/%.o,$(SOURCES))
 
-CXX_FLAGS = -std=c++11 
-CXX_FLAGS+=$(shell pkg-config --cflags --libs protobuf) #add protobuf libs to flags
+CXX_FLAGS = -std=c++11
 
 # Tady se asi musi pridat protobuf
 Obj/%.o: %.cpp
@@ -18,7 +17,7 @@ CUR_TARGET := $(notdir $(shell pwd))
 
 .SILENT:
 
-all: Protobuf InterfaceMonitor
+all: InterfaceMonitor
 
 start:
 	@echo ==== Building target: $(CUR_TARGET) ====
