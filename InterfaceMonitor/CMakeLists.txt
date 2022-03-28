@@ -7,16 +7,17 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/CMakeModules/)
 # Project name
 project(InterfaceMonitor)
 
-find_package(Protobuf REQUIRED)
+#find_package(Protobuf REQUIRED)
 find_package(PcapPlusPlus REQUIRED)
 
 if (APPLE)
     set(CMAKE_CXX_FLAGS "-lpcap -lpthread -framework SystemConfiguration -framework CoreFoundation ${CMAKE_CXX_FLAGS}")
 endif (APPLE)
 
-if(protobuf_VERBOSE)
-    message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")
-endif()
+set(CMAKE_CXX_STANDARD 17)
+#if(protobuf_VERBOSE)
+#    message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")
+#endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
@@ -24,7 +25,7 @@ set(InterfaceMonitor_SRCS
         main.cpp
         InterfaceMonitor.cpp
         LoggerCsv.cpp)
-set(InterfaceMonitor_PROTOS IFMonitorMessage.proto )
+#set(InterfaceMonitor_PROTOS IFMonitorMessage.proto )
 
 # =========================================
 
@@ -36,9 +37,9 @@ add_executable(${executable_name}
         )
 
 target_link_libraries(${executable_name}
-        protobuf::libprotobuf
+#        protobuf::libprotobuf
         PcapPlusPlus::PcapPlusPlus
         )
 
 # Generate protobuf messages
-protobuf_generate(TARGET ${executable_name})
+#protobuf_generate(TARGET ${executable_name})

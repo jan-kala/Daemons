@@ -1,6 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "HTTPMessage.pb.h"
+//#include "HTTPMessage.pb.h"
 #include <nlohmann/json.hpp>
 
 #pragma clang diagnostic push
@@ -8,7 +8,7 @@
 #define LOG_FILE_PATH "/tmp/WebAnnotator/browser.csv"
 
 using namespace nlohmann;
-using namespace google::protobuf::util;
+//using namespace google::protobuf::util;
 
 class Logger
 {
@@ -46,15 +46,15 @@ private:
 
 Logger logger;
 
-void sendProtobufMessage()
-{
-    anotator::InterfaceMessage msg;
-    msg.set_check(42);
-    std::fstream fd_out("pbfile", std::ios::out | std::ios::trunc | std::ios::binary);
-    if (!msg.SerializeToOstream(&fd_out)) {
-        logger.log("failed to send message");
-    }
-}
+//void sendProtobufMessage()
+//{
+//    anotator::InterfaceMessage msg;
+//    msg.set_check(42);
+//    std::fstream fd_out("pbfile", std::ios::out | std::ios::trunc | std::ios::binary);
+//    if (!msg.SerializeToOstream(&fd_out)) {
+//        logger.log("failed to send message");
+//    }
+//}
 
 json get_native_message() 
 {
@@ -72,7 +72,7 @@ json get_native_message()
 
 int main(int argc, char** argv)
 {
-    GOOGLE_PROTOBUF_VERIFY_VERSION;
+//    GOOGLE_PROTOBUF_VERIFY_VERSION;
 
     while (true) {
         json message = get_native_message();
