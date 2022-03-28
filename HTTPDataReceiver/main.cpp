@@ -35,8 +35,24 @@ public:
     {
         fd.open(LOG_FILE_PATH, std::ios::out | std::ios::app );
         std::string ts_str = msg["timeStamp"].dump();
+        ts_str.insert(ts_str.length()-3, ".");
+
+
+        std::string url = msg["url"].dump();
+        std::string proto;
+        if (url.rfind("http:", 0) == 0){
+            proto = "HTTP";
+            url.erase(0,6);
+        } else {
+            proto = "TLS";
+            url.erase(0,7);
+        }
+
         fd  << ts_str << ", "
-            << msg.dump() << std::endl;
+            << "Browser, "
+            << proto << ", \""
+            << url << "\", \""
+            << msg.dump() << "\""<< std::endl;
         fd.close();
     }
 private:
