@@ -49,17 +49,14 @@ void InterfaceMonitor::onPacketArrives(pcpp::RawPacket *packet, pcpp::PcapLiveDe
     pcpp::Packet parsedPacket(packet);
     struct PacketInfo packetInProcess = {};
 
-    if (parsedPacket.isPacketOfType(pcpp::IPv4))
-    {
+    if (parsedPacket.isPacketOfType(pcpp::IPv4)){
         parseIPHeaders(packet, parsedPacket, packetInProcess);
     }
 
-    if (parsedPacket.isPacketOfType(pcpp::HTTP))
-    {
+    if (parsedPacket.isPacketOfType(pcpp::HTTP)){
         parseHttpPacket(parsedPacket, packetInProcess);
     }
-    else if (parsedPacket.isPacketOfType(pcpp::SSL))
-    {
+    else if (parsedPacket.isPacketOfType(pcpp::SSL)){
         parseSslPacket(parsedPacket, packetInProcess);
     }
 
