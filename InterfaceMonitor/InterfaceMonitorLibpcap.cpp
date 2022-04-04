@@ -59,6 +59,39 @@ int InterfaceMonitorLibpcap::run() {
     return IFMONITOR_RETURN_SUCCESS;
 }
 
+char *get_TLS_SNI(unsigned char *bytes, int* len)
+{
+    unsigned char *curr;
+    unsigned char sidlen = bytes[43];
+    curr = bytes + 1 + 43 + sidlen;
+    unsigned short cslen = ntohs(*(unsigned short*)curr);
+    curr += 2 + cslen;
+    unsigned char cmplen = *curr;
+    curr += 1 + cmplen;
+    unsigned char *maxchar = curr + 2 + ntohs(*(unsigned short*)curr);
+    curr += 2;
+    unsigned short ext_type = 1;
+    unsigned short ext_len;
+    while(curr < maxchar && ext_type != 0)
+    {
+        ext_type = ntohs(*(unsigned short*)curr);
+        curr += 2;
+        ext_len = ntohs(*(unsigned short*)curr);
+        curr += 2;
+        if(ext_type == 0)
+        {
+            curr += 3;
+            unsigned short namelen = ntohs(*(unsigned short*)curr);
+            curr += 2;
+            *len = namelen;
+            return (char*)curr;
+        }
+        else curr += ext_len;
+    }
+    if (curr != maxchar) return nullptr;
+    return NULL; //SNI was not present
+}
+
 void InterfaceMonitorLibpcap::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *header, const u_char *packet)
 {
     ParsedPacket parsedPacket;
@@ -95,8 +128,14 @@ void InterfaceMonitorLibpcap::onPacketArrives(u_char *cookie, const struct pcap_
 
     if ( payload[0] == 'G' && payload[1] == 'E' && payload[2] == 'T') {
         parsedPacket.type = ParsedPacket::AppDataType::HTTP;
+        auto urlStart = (char*)(&payload[4]);
+        auto urlEnd = strchr((char*)urlStart, ' ');
+        parsedPacket.serverName = std::string(urlStart, urlEnd);
     } else {
         parsedPacket.type = ParsedPacket::AppDataType::TLS;
+        int sniLen;
+        char* sniStart = get_TLS_SNI((u_char*)payload, &sniLen);
+        parsedPacket.serverName = std::string(sniStart, sniLen);
     }
     logCsv(parsedPacket);
 
@@ -109,7 +148,7 @@ void InterfaceMonitorLibpcap::logCsv(ParsedPacket& parsedPacket) {
     info.srcPort = std::to_string(parsedPacket.srcPort);
     info.dstIP = parsedPacket.dstIp;
     info.dstPort = std::to_string(parsedPacket.dstPort);
-    info.server_name = "[serverName]";
+    info.server_name = parsedPacket.serverName;
     info.timestamp = parsedPacket.tstamp;
     info.type = parsedPacket.type == ParsedPacket::AppDataType::HTTP ? "HTTP" : "TLS";
 

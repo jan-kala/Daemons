@@ -24,6 +24,7 @@ public:
             HTTP,
             TLS
         };
+        std::string serverName;
         enum AppDataType type;
     };
 private:
