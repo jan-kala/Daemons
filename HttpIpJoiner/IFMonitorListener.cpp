@@ -9,8 +9,9 @@
 #include <iostream>
 #include <sys/socket.h>
 
-IFMonitorListener::IFMonitorListener(std::string& domainSocketPath)
+IFMonitorListener::IFMonitorListener(std::string &domainSocketPath, PairingCache *pairingCache)
     : ProtobufReceiverBase(domainSocketPath)
+    , pairingCache(pairingCache)
 {}
 
 IFMonitorListener::~IFMonitorListener() {
@@ -26,17 +27,23 @@ void IFMonitorListener::run() {
 
 void IFMonitorListener::worker() {
     std::unique_lock<std::mutex> lock(worker_mutex);
-    std::chrono::seconds sec(1);
+    std::chrono::microseconds us(10);
+
+    connectSocket();
 
     int dataLen = 0;
     char lenghtBuffer[4];
 
-    while (worker_cv.wait_for(lock, sec) == std::cv_status::timeout) {
+    while (worker_cv.wait_for(lock, us) == std::cv_status::timeout) {
 
         if ((dataLen = recv(this->acceptSockFd, lenghtBuffer, 4, MSG_PEEK))==-1) {
             std::cerr<< "Failed to read length of the message";
             return;
         };
+        if (dataLen == 0){
+            connectSocket();
+            continue;
+        }
 
         // READ header
         google::protobuf::uint32 size;
@@ -59,6 +66,7 @@ void IFMonitorListener::worker() {
         message.ParseFromCodedStream(&codedInputStream2);
         codedInputStream2.PopLimit(msgLimit);
         // Print the message
-        LoggerCsv::log(message);
+//        LoggerCsv::log(message);
+        pairingCache->pair(message.servername());
     }
 }

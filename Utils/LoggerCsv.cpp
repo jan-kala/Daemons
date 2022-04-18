@@ -48,7 +48,11 @@ void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath) {
     std::ofstream of;
     std::ostream out = checkFileOutput(outputPath, of);
 
-    out << "Hello" << std::endl;
+    out << message.timestamp_s() << "." << message.timestamp_ms()
+        << ", Browser"
+        << "," << message.servername() << ",\""
+        << message.data() << "\""
+        << std::endl;
 }
 
 std::ostream LoggerCsv::checkFileOutput(const char *filePath, std::ofstream &of) {

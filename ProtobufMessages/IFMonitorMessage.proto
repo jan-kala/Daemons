@@ -15,7 +15,7 @@ message IFMessage {
     bytes dstV6 = 7;
   }
   required int32 dstPort = 8;
-  required uint32 timestamp_s = 9;
+  required uint64 timestamp_s = 9;
   required uint32 timestamp_ms = 10;
   required uint32 ipVersion = 11;
 }

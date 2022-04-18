@@ -59,6 +59,8 @@ int InterfaceMonitor::run() {
         return IFMONITOR_RETURN_ERROR;
     }
 
+    connectSocket();
+
     pcap_loop(handle, -1, onPacketArrives, (u_char*)&sockFd);
 
 
@@ -83,7 +85,7 @@ void InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr 
     } else {
         parseTlsPayload(payload, message);
     }
-    LoggerCsv::log(message, "log_test.txt");
+    LoggerCsv::log(message);
     protoSend(message, sockFd);
 
 }
@@ -147,7 +149,7 @@ void InterfaceMonitor::parseHTTPPayload(std::string &payload, annotator::IFMessa
     // Take the resource path from first line
     std::string resourcePath = "";
     auto startOfPath = lines[0].find(' ');
-    auto endOfPath = lines[0].find(" HTTP");
+    auto endOfPath = lines[0].find(" HTTP") - 1;
     resourcePath = lines[0].substr(startOfPath+1, endOfPath-startOfPath);
 
     // Take the host
@@ -218,7 +220,7 @@ void InterfaceMonitor::protoSend(annotator::IFMessage &message, int *socket) {
     message.SerializeToCodedStream(&codedOutputStream);
 
     if (send(*socket, payload, payloadSize, 0) < 0){
-        std::cerr << "IFMonitor: Failed to send data to Joiner! " << *socket << std::endl;
+        std::cerr << "IFMonitor: Failed to send data to Joiner! " << std::endl;
     }
 }
 

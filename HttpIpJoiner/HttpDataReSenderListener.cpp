@@ -8,8 +8,10 @@
 #include <iostream>
 #include <sys/socket.h>
 
-HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath)
-    : ProtobufReceiverBase(domainSocketPath){}
+HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath, PairingCache *pairingCache)
+    : ProtobufReceiverBase(domainSocketPath)
+    , pairingCache(pairingCache)
+{}
 
 HttpDataReSenderListener::~HttpDataReSenderListener() {
     worker_cv.notify_all();
@@ -24,16 +26,22 @@ void HttpDataReSenderListener::run() {
 
 void HttpDataReSenderListener::worker() {
     std::unique_lock<std::mutex> lock(worker_mutex);
-    std::chrono::seconds sec(1);
+    std::chrono::microseconds us(10);
+
+    connectSocket();
 
     int dataLen = 0;
     char lenghtBuffer[4];
 
-    while (worker_cv.wait_for(lock, sec) == std::cv_status::timeout) {
+    while (worker_cv.wait_for(lock, us) == std::cv_status::timeout) {
         if ((dataLen = recv(this->acceptSockFd, lenghtBuffer, 4, MSG_PEEK))==-1) {
             std::cerr<< "Failed to read length of the message";
             return;
         };
+        if (dataLen == 0){
+            connectSocket();
+            continue;
+        }
 
         // READ header
         google::protobuf::uint32 size;
@@ -56,6 +64,20 @@ void HttpDataReSenderListener::worker() {
         message.ParseFromCodedStream(&codedInputStream2);
         codedInputStream2.PopLimit(msgLimit);
         // Print the message
-        LoggerCsv::log(message);
+//        LoggerCsv::log(message);
+        std::string cleanSNI = message.servername();
+        std::string http = "http://";
+        std::string https = "https://";
+        // remove http:// and https://
+        std::string::size_type i = cleanSNI.find(http);
+        if (i != std::string::npos){
+            cleanSNI.erase(i, http.length());
+        }
+        i = cleanSNI.find(https);
+        if (i != std::string::npos){
+            cleanSNI.erase(i, https.length());
+        }
+        cleanSNI.erase(cleanSNI.begin(), cleanSNI.begin()+1);
+        pairingCache->addNew(cleanSNI);
     }
 }

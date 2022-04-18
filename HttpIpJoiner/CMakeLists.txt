@@ -15,7 +15,7 @@ set(HttpIpJoiner_SRCS
         IFMonitorListener.cpp
         HttpDataReSenderListener.cpp
         ../Utils/LoggerCsv.cpp
-        ../Utils/ProtobufReceiverBase.cpp)
+        ../Utils/ProtobufReceiverBase.cpp PairingCache.cpp PairingCache.h)
 
 # =========================================
 

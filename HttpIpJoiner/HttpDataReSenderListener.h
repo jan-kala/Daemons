@@ -6,12 +6,13 @@
 #define HTTPIPJOINER_HTTPDATARESENDERLISTENER_H
 
 #include "../Utils/ProtobufReceiverBase.h"
+#include "PairingCache.h"
 #include <thread>
 #include <mutex>
 
 class HttpDataReSenderListener:ProtobufReceiverBase {
 public:
-    explicit HttpDataReSenderListener(std::string& domainSocketPath);
+    explicit HttpDataReSenderListener(std::string &domainSocketPath, PairingCache *pairingCache);
     ~HttpDataReSenderListener();
     void run();
 private:
@@ -20,6 +21,8 @@ private:
     std::thread             worker_thread;
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
+
+    PairingCache* pairingCache;
 };
 
 

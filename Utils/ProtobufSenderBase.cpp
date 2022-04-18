@@ -10,7 +10,6 @@
 
 ProtobufSenderBase::ProtobufSenderBase(std::string& domainSocketPath) {
     this->domainSocketPath = domainSocketPath;
-    connectSocket();
 }
 
 ProtobufSenderBase::~ProtobufSenderBase() {

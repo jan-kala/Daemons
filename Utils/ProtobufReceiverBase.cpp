@@ -10,7 +10,6 @@
 
 ProtobufReceiverBase::ProtobufReceiverBase(std::string &domainSocketPath) {
     this->domainSocketPath = domainSocketPath;
-    connectSocket();
 }
 
 ProtobufReceiverBase::~ProtobufReceiverBase() {
