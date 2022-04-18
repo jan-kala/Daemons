@@ -1,7 +1,0 @@
-syntax = "proto2";
-
-package anotator;
-
-message IFMessage {
-  required int64 check = 1;
-}

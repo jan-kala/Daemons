@@ -1,38 +1,34 @@
-#include "LoggerCsv.h"
-#include <pcapplusplus/RawPacket.h>
-#include <pcapplusplus/PcapLiveDevice.h>
-#include <pcapplusplus/IPv4Layer.h>
-#include <pcapplusplus/TcpLayer.h>
-#include <pcapplusplus/HttpLayer.h>
-#include <pcapplusplus/SSLLayer.h>
+//
+// Created by Jan Kala on 03.04.2022.
+//
 
-class InterfaceMonitor
-{
+#ifndef INTERFACEMONITOR_INTERFACEMONITOR_H
+#define INTERFACEMONITOR_INTERFACEMONITOR_H
+
+#include "../Utils/LoggerCsv.h"
+#include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
+#include "../Utils/ProtobufSenderBase.h"
+#include <string>
+#include <pcap.h>
+
+
+class InterfaceMonitor: ProtobufSenderBase{
 public:
-    InterfaceMonitor(std::string ifname);
+    explicit InterfaceMonitor(std::string& domainSocketPath)
+        : ProtobufSenderBase(domainSocketPath){};
+
     int run();
 
 private:
-    std::string ifname;
+    static void onPacketArrives(u_char* cookie, const struct pcap_pkthdr* header, const u_char* packet);
+    static u_char *parseEthernetIpTcpHeaders(const u_char *packet, annotator::IFMessage &message);
+    static bool isHttp(const u_char* payload);
+    static void parseHTTPPayload(std::string &payload, annotator::IFMessage &message);
+    static void parseTlsPayload(u_char* payload, annotator::IFMessage &message);
+    static char* getTlsSni(u_char *bytes, int* len);
 
-    // Packets processing
-    struct PacketInfo{
-        bool isDesired = false;
-
-        pcpp::IPv4Layer*    ipv4;
-        pcpp::TcpLayer*     tcp;
-        std::string         timestamp;
-        pcpp::ProtocolType  type; // HTTP or TLS
-        std::string         url; // Populated if HTTP/SSLHandshake packet is processed
-    };
-
-    static void onPacketArrives(pcpp::RawPacket* packet, pcpp::PcapLiveDevice* dev, void* cookie);
-    static void parseIPHeaders(pcpp::RawPacket *packet, pcpp::Packet &parsedPacket,
-                               struct PacketInfo &packetInProcess);
-    static void parseHttpPacket(pcpp::Packet &parsedPacket, struct PacketInfo &packetInProcess);
-    static void parseSslPacket(pcpp::Packet &parsedPacket, struct PacketInfo &packetInProcess);
-
-    // Logging
-    static LoggerCsv loggerCsv;
-    static void logCsv(struct PacketInfo &processedPacket);
+    static void protoSend(annotator::IFMessage &message, int *socket);
 };
+
+
+#endif //INTERFACEMONITOR_INTERFACEMONITOR_H

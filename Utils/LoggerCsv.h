@@ -6,6 +6,8 @@
 #define INTERFACEMONITOR_LOGGERCSV_H
 
 #include <iostream>
+#include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
+#include "../ProtobufMessages/build/HTTPMessage.pb.h"
 
 class LoggerCsv {
 public:
@@ -20,6 +22,11 @@ public:
     };
 
     static void log(struct InterfaceInfo info);
+    static void log(annotator::IFMessage &message, const char *outputPath = nullptr);
+    static void log(annotator::HttpMessage &message, const char *outputPath = nullptr);
+
+protected:
+    static std::ostream checkFileOutput(const char *filePath, std::ofstream &of);
 };
 
 
