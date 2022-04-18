@@ -12,7 +12,10 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 set(HttpIpJoiner_SRCS
         main.cpp
-        ../Utils/LoggerCsv.cpp)
+        IFMonitorListener.cpp
+        HttpDataReSenderListener.cpp
+        ../Utils/LoggerCsv.cpp
+        ../Utils/ProtobufReceiverBase.cpp)
 
 # =========================================
 

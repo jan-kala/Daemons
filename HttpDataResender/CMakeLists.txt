@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 
 # Project
-project(HttpDataResender)
+project(HttpDataReSender)
 
 # Dependencies
 message(${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/CPM.cmake)
@@ -23,7 +23,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 # =========================================
 
-set(HttpDataResender_SRCS
+set(HttpDataReSender_SRCS
         main.cpp
         HttpDataReSender.cpp HttpDataReSender.h
         ../Utils/ProtobufSenderBase.cpp
@@ -31,9 +31,9 @@ set(HttpDataResender_SRCS
 
 # =========================================
 
-set(executable_name HttpDataResender)
+set(executable_name HttpDataReSender)
 
-add_executable(${executable_name} ${HttpDataResender_SRCS})
+add_executable(${executable_name} ${HttpDataReSender_SRCS})
 target_link_libraries(${executable_name}
         protobuf::libprotobuf
         nlohmann_json::nlohmann_json
