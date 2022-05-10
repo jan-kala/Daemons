@@ -6,13 +6,15 @@
 #define HTTPIPJOINER_IFMONITORLISTENER_H
 
 #include "../Utils/ProtobufReceiverBase.h"
-#include "PairingCache.h"
+#include "Storage/Storage.h"
 #include <thread>
 #include <mutex>
+#include <netinet/in.h>
+#include <map>
 
 class IFMonitorListener: ProtobufReceiverBase {
 public:
-    explicit IFMonitorListener(std::string &domainSocketPath, PairingCache *pairingCache);
+    explicit IFMonitorListener(std::string &domainSocketPath, ActiveConnectionsPool *pool);
     ~IFMonitorListener();
     void run();
 private:
@@ -22,7 +24,7 @@ private:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
-    PairingCache* pairingCache;
+    ActiveConnectionsPool* pool;
 };
 
 

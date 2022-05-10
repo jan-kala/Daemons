@@ -8,10 +8,11 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
-IFMonitorListener::IFMonitorListener(std::string &domainSocketPath, PairingCache *pairingCache)
-    : ProtobufReceiverBase(domainSocketPath)
-    , pairingCache(pairingCache)
+IFMonitorListener::IFMonitorListener(std::string &domainSocketPath, ActiveConnectionsPool *pool)
+    : ProtobufReceiverBase(domainSocketPath),
+    pool(pool)
 {}
 
 IFMonitorListener::~IFMonitorListener() {
@@ -32,11 +33,11 @@ void IFMonitorListener::worker() {
     connectSocket();
 
     int dataLen = 0;
-    char lenghtBuffer[4];
+    char lengthBuffer[4];
 
     while (worker_cv.wait_for(lock, us) == std::cv_status::timeout) {
 
-        if ((dataLen = recv(this->acceptSockFd, lenghtBuffer, 4, MSG_PEEK))==-1) {
+        if ((dataLen = recv(this->acceptSockFd, lengthBuffer, 4, MSG_PEEK)) == -1) {
             std::cerr<< "Failed to read length of the message";
             return;
         };
@@ -47,7 +48,7 @@ void IFMonitorListener::worker() {
 
         // READ header
         google::protobuf::uint32 size;
-        google::protobuf::io::ArrayInputStream ais(lenghtBuffer, 4);
+        google::protobuf::io::ArrayInputStream ais(lengthBuffer, 4);
         google::protobuf::io::CodedInputStream codedInputStream(&ais);
         codedInputStream.ReadVarint32(&size); // now we have the size
 
@@ -65,8 +66,10 @@ void IFMonitorListener::worker() {
         annotator::IFMessage message;
         message.ParseFromCodedStream(&codedInputStream2);
         codedInputStream2.PopLimit(msgLimit);
-        // Print the message
-//        LoggerCsv::log(message);
-        pairingCache->pair(message.servername());
+
+        pool->messageQ_mutex.lock();
+        pool->messageQ.push(message);
+        pool->messageQ_mutex.unlock();
+
     }
 }

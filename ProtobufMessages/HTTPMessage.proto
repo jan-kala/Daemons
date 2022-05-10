@@ -3,8 +3,28 @@ syntax = "proto2";
 package annotator;
 
 message HttpMessage {
-    required string serverName = 1;
-    required string data = 2;
-    required uint64 timestamp_s = 3;
-    required uint32 timestamp_ms = 4;
+    enum MessageType {
+        PAIRING = 0;
+        DATA_ASSIGNMENT = 1;
+        NEW_REQUEST = 2;
+    }
+    required MessageType type = 1;
+
+    required uint64 timestamp_s = 2;
+    required uint32 timestamp_ms = 3;
+
+    enum RequestProtocol {
+        HTTP = 0;
+        TLS = 1;
+    }
+    optional RequestProtocol protocol = 4;
+    optional string hostname = 5;
+    optional uint32 ipVersion = 6;
+    oneof serverIp {
+        fixed32 serverIpV4 = 7;
+        bytes   serverIpV6 = 8;
+    }
+    optional int32 serverPort = 9;
+
+    optional string data = 10;
 }

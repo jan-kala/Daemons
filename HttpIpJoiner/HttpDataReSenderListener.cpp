@@ -8,9 +8,9 @@
 #include <iostream>
 #include <sys/socket.h>
 
-HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath, PairingCache *pairingCache)
+HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath, ActiveConnectionsPool *pool)
     : ProtobufReceiverBase(domainSocketPath)
-    , pairingCache(pairingCache)
+    , pool(pool)
 {}
 
 HttpDataReSenderListener::~HttpDataReSenderListener() {
@@ -26,9 +26,10 @@ void HttpDataReSenderListener::run() {
 
 void HttpDataReSenderListener::worker() {
     std::unique_lock<std::mutex> lock(worker_mutex);
-    std::chrono::microseconds us(10);
+    std::chrono::microseconds us(50);
 
     connectSocket();
+    std::cout<< "connected" << std::endl;
 
     int dataLen = 0;
     char lenghtBuffer[4];
@@ -40,6 +41,7 @@ void HttpDataReSenderListener::worker() {
         };
         if (dataLen == 0){
             connectSocket();
+            std::cout<< "connected" << std::endl;
             continue;
         }
 
@@ -63,21 +65,33 @@ void HttpDataReSenderListener::worker() {
         annotator::HttpMessage message;
         message.ParseFromCodedStream(&codedInputStream2);
         codedInputStream2.PopLimit(msgLimit);
-        // Print the message
+
+        // wait for Interface messages
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        while (true){
+            pool->messageQ_mutex.lock();
+            if (!pool->messageQ.empty()){
+                auto messageFromQ = pool->messageQ.front();
+
+                if (messageFromQ.timestamp_s() <= message.timestamp_s()) {
+
+//                    LoggerCsv::log(messageFromQ);
+                    pool->processMessage(messageFromQ);
+
+                    pool->messageQ.pop();
+
+                    pool->messageQ_mutex.unlock();
+                    continue;
+                }
+            }
+
+            pool->messageQ_mutex.unlock();
+            break;
+        }
 //        LoggerCsv::log(message);
-        std::string cleanSNI = message.servername();
-        std::string http = "http://";
-        std::string https = "https://";
-        // remove http:// and https://
-        std::string::size_type i = cleanSNI.find(http);
-        if (i != std::string::npos){
-            cleanSNI.erase(i, http.length());
-        }
-        i = cleanSNI.find(https);
-        if (i != std::string::npos){
-            cleanSNI.erase(i, https.length());
-        }
-        cleanSNI.erase(cleanSNI.begin(), cleanSNI.begin()+1);
-        pairingCache->addNew(cleanSNI);
+        pool->processMessage(message);
+
+
     }
 }

@@ -3,7 +3,17 @@ syntax = "proto2";
 package annotator;
 
 message IFMessage {
-  required string serverName = 2;
+  enum MessageType {
+    UNWANTED_MESSAGE = 0;
+    TLS_NEW_CONNECTION = 1;
+    TLS_CLOSE_CONNECTION_FIN = 2;
+    TLS_CLOSE_CONNECTION_RST = 3;
+    HTTP = 4;
+  }
+  required MessageType type = 1;
+  optional string serverName = 2;
+
+  required uint32 ipVersion = 11;
   oneof srcIpAddr {
     fixed32 srcV4 = 3;
     bytes srcV6 = 4;
@@ -15,7 +25,8 @@ message IFMessage {
     bytes dstV6 = 7;
   }
   required int32 dstPort = 8;
+
   required uint64 timestamp_s = 9;
   required uint32 timestamp_ms = 10;
-  required uint32 ipVersion = 11;
+
 }

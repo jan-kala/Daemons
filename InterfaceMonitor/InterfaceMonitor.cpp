@@ -8,8 +8,9 @@
 #include <pcap.h>
 #include <sstream>
 #include <vector>
-#include <fstream>
 #include <sys/un.h>
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
 
 #include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
 
@@ -23,17 +24,32 @@
  * that contains SNI.
  * Filter is taken from https://gist.github.com/LeeBrotherston/92cc2637f33468485b8f
  * Last line of filter is HTTP GET request filter.
+ *
+ * ipv4 tcp FIN is set
+ * ipv6 tcp FIN is set
+ * ipv4 tcp RST is set
+ * ipv6 tcp RST is set
+ * TLS filter taken from the source
+ * HTTP filter (looks for GET in message -> GET = 0x47455420)
  */
 #define PACKET_CAPTURE_FILTER \
-    "(tcp[tcp[12]/16*4]=22 and (tcp[tcp[12]/16*4+5]=1) and (tcp[tcp[12]/16*4+9]=3) and (tcp[tcp[12]/16*4+1]=3))" \
+    "((tcp[tcpflags] & tcp-fin) != 0) " \
+    "or "                     \
+    "(tcp and ip6[13+40]&0x01 != 0) " \
+    "or "                     \
+    "((tcp[tcpflags] & tcp-rst) != 0) " \
+    "or "                     \
+    "(tcp and ip6[13+40]&0x04 != 0) " \
+    "or "                     \
+    "(tcp[tcp[12]/16*4]=22 and (tcp[tcp[12]/16*4+5]=1) and (tcp[tcp[12]/16*4+9]=3) and (tcp[tcp[12]/16*4+1]=3)) " \
     "or " \
-    "(ip6[(ip6[52]/16*4)+40]=22 and (ip6[(ip6[52]/16*4+5)+40]=1) and (ip6[(ip6[52]/16*4+9)+40]=3) and (ip6[(ip6[52]/16*4+1)+40]=3))" \
+    "(ip6[(ip6[52]/16*4)+40]=22 and (ip6[(ip6[52]/16*4+5)+40]=1) and (ip6[(ip6[52]/16*4+9)+40]=3) and (ip6[(ip6[52]/16*4+1)+40]=3)) " \
     "or " \
     "((udp[14] = 6 and udp[16] = 32 and udp[17] = 1) and ((udp[(udp[60]/16*4)+48]=22) and (udp[(udp[60]/16*4)+53]=1) and (udp[(udp[60]/16*4)+57]=3) and (udp[(udp[60]/16*4)+49]=3))) " \
     "or " \
-    "(proto 41 and ip[26] = 6 and ip[(ip[72]/16*4)+60]=22 and (ip[(ip[72]/16*4+5)+60]=1) and (ip[(ip[72]/16*4+9)+60]=3) and (ip[(ip[72]/16*4+1)+60]=3))" \
-    "or"  \
-    "(tcp and tcp[32:4] =  0x47455420)" \
+    "(proto 41 and ip[26] = 6 and ip[(ip[72]/16*4)+60]=22 and (ip[(ip[72]/16*4+5)+60]=1) and (ip[(ip[72]/16*4+9)+60]=3) and (ip[(ip[72]/16*4+1)+60]=3)) " \
+    "or "  \
+    "(tcp and tcp[32:4] =  0x47455420) "
 
 int InterfaceMonitor::run() {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -61,61 +77,75 @@ int InterfaceMonitor::run() {
 
     connectSocket();
 
-    pcap_loop(handle, -1, onPacketArrives, (u_char*)&sockFd);
-
+    pcap_loop(handle, -1, onPacketArrives, (u_char*)this);
 
     return IFMONITOR_RETURN_SUCCESS;
 }
 
 void InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *header, const u_char *packet)
 {
-    int* sockFd = (int*)cookie;
+    auto* self = (InterfaceMonitor*)cookie;
 
     annotator::IFMessage message;
-    message.set_timestamp_s(header->ts.tv_sec);
-    message.set_timestamp_ms(header->ts.tv_usec);
+    message.set_type(annotator::IFMessage_MessageType_UNWANTED_MESSAGE);
+
+    // Grab the timestamps from the capture info
+    uint64_t millis = (header->ts.tv_sec * (uint64_t)1000000) + (header->ts.tv_usec );
+    message.set_timestamp_s(millis);
+    message.set_timestamp_ms(0);
 
     u_char* payload;
     payload = parseEthernetIpTcpHeaders(packet, message);
 
-    if (isHttp(payload)) {
-        uint32_t payload_size = header->len - (payload - packet);
-        std::string payloadStr((char*)payload, payload_size);
-        parseHTTPPayload(payloadStr, message);
-    } else {
-        parseTlsPayload(payload, message);
+    if (!payload){
+        return;
     }
-    LoggerCsv::log(message);
-    protoSend(message, sockFd);
+
+    if (message.type() == annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN) {
+        // For logging purpose
+        message.set_servername("[TCP FIN]");
+    } else if (message.type() == annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST) {
+        // For logging purpose
+        message.set_servername("[TCP RST]");
+    } else {
+        // Message if HTTP or TLS
+        if (isHttp(payload)) {
+            message.set_type(annotator::IFMessage_MessageType_HTTP);
+            uint32_t payload_size = header->len - (payload - packet);
+            std::string payloadStr((char *) payload, payload_size);
+            parseHTTPPayload(payloadStr, message);
+        } else {
+            message.set_type(annotator::IFMessage_MessageType_TLS_NEW_CONNECTION);
+            parseTlsPayload(payload, message);
+        }
+    }
+
+    if (message.type() != annotator::IFMessage_MessageType_UNWANTED_MESSAGE) {
+        auto now = std::chrono::system_clock::now().time_since_epoch();
+        std::cout<< now.count() << std::endl;
+        LoggerCsv::log(message);
+        protoSend(message, &(self->sockFd));
+    }
 
 }
 
 u_char * InterfaceMonitor::parseEthernetIpTcpHeaders(const u_char *packet, annotator::IFMessage &message) {
     const struct sniff_ethernet *ethernet; /* The ethernet header */
-    const struct sniff_ip *ip; /* The IP header */
     const struct sniff_tcp *tcp; /* The TCP header */
+    uint16_t size_ip_header;
 
-    // Skip the Ethernet header
-    ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
-
-    // Check the size of IP header
-    u_int sizeIp = IP_HL(ip) * 4;
-    if (sizeIp < 20){
-        throw std::runtime_error("Invalid IP header size");
-    }
-
-    // Grab the IPs from the header
-    message.set_ipversion(IP_V(ip));
-    if (IP_V(ip) == 4 ) {
-        message.set_srcv4(ip->ip_src.s_addr);
-        message.set_dstv4(ip->ip_dst.s_addr);
+    // Skip the Ethernet header;
+    auto ip = (struct ip*)(packet + SIZE_ETHERNET);
+    if (ip->ip_v == 4) {
+        size_ip_header = parseIpV4Headers(ip, message);
+    } else if (ip->ip_v == 6){
+        size_ip_header = parseIpV6Headers((ip6_hdr *) ip, message);
     } else {
-        //TODO
-        //IPv6
+        throw std::runtime_error("Unsupported IP version!");
     }
 
     // Move to the TCP headers
-    tcp = (struct sniff_tcp*) (packet + SIZE_ETHERNET + sizeIp);
+    tcp = (struct sniff_tcp*) (packet + SIZE_ETHERNET + size_ip_header);
     u_int sizeTcp = TH_OFF(tcp)*4;
     if (sizeTcp < 20) {
         throw std::runtime_error("Invalid TCP header size");
@@ -125,8 +155,48 @@ u_char * InterfaceMonitor::parseEthernetIpTcpHeaders(const u_char *packet, annot
     message.set_srcport(ntohs(tcp->th_sport));
     message.set_dstport( ntohs(tcp->th_dport));
 
+    // Set the correct TCP type if any
+    if (tcp->th_flags & TH_FIN) {
+        message.set_type(annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN);
+    }
+    // RST has higher priority, so it can rewrite FIN message type
+    if (tcp->th_flags & TH_RST){
+        message.set_type(annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST);
+    }
+
     // return pointer to the payload
-    return (u_char *)(packet + SIZE_ETHERNET + sizeIp + sizeTcp);
+    return (u_char *)(packet + SIZE_ETHERNET + size_ip_header + sizeTcp);
+}
+
+uint16_t InterfaceMonitor::parseIpV4Headers(const ip *ipPayload, annotator::IFMessage &message) {
+    uint16_t hdrSize = ipPayload->ip_hl * 4;
+    // Check the size of IP header
+    if (hdrSize < 20){
+        throw std::runtime_error("Invalid IP header size");
+    }
+
+    message.set_ipversion(4);
+
+    // Grab the IPs from the header
+    message.set_srcv4(ipPayload->ip_src.s_addr);
+    message.set_dstv4(ipPayload->ip_dst.s_addr);
+
+    return hdrSize;
+}
+
+uint16_t InterfaceMonitor::parseIpV6Headers(const ip6_hdr *ipPayload, annotator::IFMessage &message) {
+    // IPv6 header length is always 40 bytes and it's not included in the header anyway
+
+    message.set_ipversion(6);
+
+    auto srcip = (const char *)&ipPayload->ip6_src;
+    auto dstip = (const char *)&ipPayload->ip6_dst;
+
+    // Grab the IPs from the header
+    message.set_srcv6(srcip, 16);
+    message.set_dstv6(dstip, 16);
+
+    return 40;
 }
 
 bool InterfaceMonitor::isHttp(const u_char *payload) {
@@ -163,16 +233,18 @@ void InterfaceMonitor::parseHTTPPayload(std::string &payload, annotator::IFMessa
     message.set_servername(host + resourcePath);
 }
 
-void InterfaceMonitor::parseTlsPayload(u_char *payload, annotator::IFMessage &message) {
+bool InterfaceMonitor::parseTlsPayload(u_char *payload, annotator::IFMessage &message) {
     int sniLen;
     std::string serverName;
     char* sniStart = getTlsSni((u_char*)payload, &sniLen);
     if (sniStart){
         serverName = std::string(sniStart, sniLen);
     } else {
-        serverName = "! no SNI present !";
+        serverName = "[no server name]"; // logging purpose
+        message.set_type(annotator::IFMessage_MessageType_UNWANTED_MESSAGE);
     }
     message.set_servername(serverName);
+    return true;
 }
 
 char *InterfaceMonitor::getTlsSni(u_char *bytes, int* len)
@@ -223,4 +295,6 @@ void InterfaceMonitor::protoSend(annotator::IFMessage &message, int *socket) {
         std::cerr << "IFMonitor: Failed to send data to Joiner! " << std::endl;
     }
 }
+
+
 

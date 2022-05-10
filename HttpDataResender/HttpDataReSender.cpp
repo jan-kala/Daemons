@@ -5,6 +5,7 @@
 #include "HttpDataReSender.h"
 #include "../Utils/LoggerCsv.h"
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 #define LOG_FILE_PATH "/tmp/WebAnnotator/browser.csv"
 
@@ -13,20 +14,8 @@ int HttpDataReSender::run() {
 
     connectSocket();
 
-    //testing message
-//    annotator::HttpMessage testmsg;
-//    std::string sni = "test.com/testing/test";
-//    testmsg.set_servername(sni);
-//    testmsg.set_timestamp_s(1647894753785);
-//    testmsg.set_timestamp_ms(1812);
-//    std::string data = "Toto jsou data ktera posilam protobufem.";
-//    testmsg.set_data(data);
-//
-//    LoggerCsv::log(testmsg);
-//    protoSend(testmsg);
-
     while (true) {
-        json message = getNativeMessage()["message"];
+        json message = getNativeMessage();
         annotator::HttpMessage pbMessage = json2protobuf(message);
         protoSend(pbMessage);
         LoggerCsv::log(pbMessage, LOG_FILE_PATH);
@@ -51,17 +40,64 @@ json HttpDataReSender::getNativeMessage() {
 
 annotator::HttpMessage HttpDataReSender::json2protobuf(json &message) {
     annotator::HttpMessage newMessage;
-    newMessage.set_servername(message["url"].dump());
 
-    float timestamp = std::stof(message["timeStamp"].dump());
-    timestamp = timestamp / 1000;
-    float ts_s, ts_ms;
-    ts_ms = std::modf(timestamp, &ts_s);
+    // Common part for all messages
+    newMessage.set_timestamp_s(message["timeStamp_s"].get<uint64_t>());
+    newMessage.set_timestamp_ms(message["timeStamp_ms"].get<int>());
 
-    newMessage.set_timestamp_s(static_cast<int>(ts_s));
-    newMessage.set_timestamp_ms(static_cast<int>(ts_ms*1000));
+    newMessage.set_data(message["details"].dump());
 
-    newMessage.set_data(message.dump());
+    // Trigger-specific parts
+    if (message["trigger"].get<std::string>() == "onSendHeaders") {
+        newMessage.set_type(annotator::HttpMessage_MessageType_NEW_REQUEST);
+        newMessage.set_hostname(message["hostname"].get<std::string>());
+
+        std::string proto = message["proto"].get<std::string>();
+        if (proto == "http:"){
+            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
+        } else if (proto == "https:"){
+            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
+        } else {
+            throw std::runtime_error("Wrong protocol");
+        }
+
+    } else if (message["trigger"].get<std::string>() == "onResponseStarted"){
+        // When response starts, connection is open and active, thus ready for pairing
+
+        newMessage.set_type(annotator::HttpMessage_MessageType_PAIRING);
+
+        newMessage.set_ipversion(message["ipVersion"].get<int>());
+        newMessage.set_hostname(message["hostname"].get<std::string>());
+        newMessage.set_serverport(message["port"].get<int>());
+
+        std::string ipString = message["ip"].get<std::string>();
+        if (newMessage.ipversion() == 4){
+            in_addr ipv4;
+            inet_pton(AF_INET, ipString.c_str(), &(ipv4.s_addr));
+            newMessage.set_serveripv4(ipv4.s_addr);
+
+        } else if (newMessage.ipversion() == 6){
+            in6_addr ipv6;
+            inet_pton(AF_INET6, ipString.c_str(), &(ipv6));
+            newMessage.set_serveripv6((const char *)&ipv6, 16);
+
+        } else {
+            throw std::runtime_error("Wrong IP version");
+        }
+
+
+        std::string proto = message["proto"].get<std::string>();
+        if (proto == "http:"){
+            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
+        } else if (proto == "https:"){
+            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
+        } else {
+            throw std::runtime_error("Wrong protocol");
+        }
+
+    } else {
+        newMessage.set_type(annotator::HttpMessage_MessageType_DATA_ASSIGNMENT);
+    }
 
     return newMessage;
 }
