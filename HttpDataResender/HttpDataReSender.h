@@ -21,8 +21,7 @@ public:
 
 private:
     json getNativeMessage();
-    annotator::HttpMessage json2protobuf(json& message);
-    void protoSend(annotator::HttpMessage &message);
+    annotator::HttpMessage json2protobuf(json& jsonMessage);
 };
 
 

@@ -23,9 +23,6 @@ private:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
-    int activeRequests = 0;
-    std::vector<std::string> active;
-
     ActiveConnectionsPool *pool;
 };
 

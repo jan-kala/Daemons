@@ -22,7 +22,7 @@ set(HttpIpJoiner_SRCS
         Storage/ServerConnectionList.cpp
         Storage/ServerConnectionList.h
         Storage/SocketConnectionList.cpp
-        Storage/SocketConnectionList.h )
+        Storage/SocketConnectionList.h)
 
 # =========================================
 

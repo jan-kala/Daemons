@@ -15,15 +15,28 @@ int HttpDataReSender::run() {
     connectSocket();
 
     while (true) {
-        json message = getNativeMessage();
-        annotator::HttpMessage pbMessage = json2protobuf(message);
-        protoSend(pbMessage);
-        LoggerCsv::log(pbMessage, LOG_FILE_PATH);
+        // Read json message from Browser Extension
+        auto nativeMessage = getNativeMessage();
+        auto protoMessage = json2protobuf(nativeMessage);
+
+        // Get and set current timestamp
+        auto timestampNow = std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::system_clock::now().time_since_epoch()
+        );
+        protoMessage.set_timestamp_messagesent(timestampNow.count());
+
+        // Send message to Joiner
+        try {
+            protoSend(protoMessage, &sockFd);
+            LoggerCsv::log(protoMessage, LOG_FILE_PATH);
+        } catch (SendMessageFailed& e){
+            LoggerCsv::log(protoMessage, LOG_FILE_PATH, "FAILED_TO_SEND, ");
+        }
     }
-    return 0;
 }
 
-json HttpDataReSender::getNativeMessage() {
+json
+HttpDataReSender::getNativeMessage() {
     // Read length of the message first
     char raw_length[4];
     fread(raw_length, 4, sizeof(char), stdin);
@@ -31,6 +44,7 @@ json HttpDataReSender::getNativeMessage() {
     if(!msg_length) {
         exit(0);
     }
+
     // Now read the whole message
     char message[msg_length];
     fread(message, msg_length, sizeof(char), stdin);
@@ -38,81 +52,66 @@ json HttpDataReSender::getNativeMessage() {
     return json::parse(m);
 }
 
-annotator::HttpMessage HttpDataReSender::json2protobuf(json &message) {
-    annotator::HttpMessage newMessage;
+annotator::HttpMessage
+HttpDataReSender::json2protobuf(json &jsonMessage) {
+    annotator::HttpMessage protoMessage;
 
     // Common part for all messages
-    newMessage.set_timestamp_s(message["timeStamp_s"].get<uint64_t>());
-    newMessage.set_timestamp_ms(message["timeStamp_ms"].get<int>());
-
-    newMessage.set_data(message["details"].dump());
+    protoMessage.set_timestamp_eventtriggered(jsonMessage["timeStamp_s"].get<uint64_t>());
+    protoMessage.set_data(jsonMessage["details"].dump());
 
     // Trigger-specific parts
-    if (message["trigger"].get<std::string>() == "onSendHeaders") {
-        newMessage.set_type(annotator::HttpMessage_MessageType_NEW_REQUEST);
-        newMessage.set_hostname(message["hostname"].get<std::string>());
+    if (jsonMessage["trigger"].get<std::string>() == "onSendHeaders") {
+        // Before anything is sent, this event is triggered
 
-        std::string proto = message["proto"].get<std::string>();
+        protoMessage.set_type(annotator::HttpMessage_MessageType_NEW_REQUEST);
+        protoMessage.set_hostname(jsonMessage["hostname"].get<std::string>());
+
+        std::string proto = jsonMessage["proto"].get<std::string>();
         if (proto == "http:"){
-            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
+            protoMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
         } else if (proto == "https:"){
-            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
+            protoMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
         } else {
             throw std::runtime_error("Wrong protocol");
         }
 
-    } else if (message["trigger"].get<std::string>() == "onResponseStarted"){
+    } else if (jsonMessage["trigger"].get<std::string>() == "onResponseStarted"){
         // When response starts, connection is open and active, thus ready for pairing
 
-        newMessage.set_type(annotator::HttpMessage_MessageType_PAIRING);
+        protoMessage.set_type(annotator::HttpMessage_MessageType_PAIRING);
+        protoMessage.set_ipversion(jsonMessage["ipVersion"].get<int>());
+        protoMessage.set_hostname(jsonMessage["hostname"].get<std::string>());
+        protoMessage.set_serverport(jsonMessage["port"].get<int>());
 
-        newMessage.set_ipversion(message["ipVersion"].get<int>());
-        newMessage.set_hostname(message["hostname"].get<std::string>());
-        newMessage.set_serverport(message["port"].get<int>());
-
-        std::string ipString = message["ip"].get<std::string>();
-        if (newMessage.ipversion() == 4){
-            in_addr ipv4;
+        auto ipString = jsonMessage["ip"].get<std::string>();
+        if (protoMessage.ipversion() == 4){
+            in_addr ipv4{};
             inet_pton(AF_INET, ipString.c_str(), &(ipv4.s_addr));
-            newMessage.set_serveripv4(ipv4.s_addr);
+            protoMessage.set_serveripv4(ipv4.s_addr);
 
-        } else if (newMessage.ipversion() == 6){
-            in6_addr ipv6;
+        } else if (protoMessage.ipversion() == 6){
+            in6_addr ipv6{};
             inet_pton(AF_INET6, ipString.c_str(), &(ipv6));
-            newMessage.set_serveripv6((const char *)&ipv6, 16);
+            protoMessage.set_serveripv6((const char *)&ipv6, 16);
 
         } else {
             throw std::runtime_error("Wrong IP version");
         }
 
 
-        std::string proto = message["proto"].get<std::string>();
+        auto proto = jsonMessage["proto"].get<std::string>();
         if (proto == "http:"){
-            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
+            protoMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
         } else if (proto == "https:"){
-            newMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
+            protoMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
         } else {
             throw std::runtime_error("Wrong protocol");
         }
 
     } else {
-        newMessage.set_type(annotator::HttpMessage_MessageType_DATA_ASSIGNMENT);
+        protoMessage.set_type(annotator::HttpMessage_MessageType_DATA_ASSIGNMENT);
     }
 
-    return newMessage;
-}
-
-void HttpDataReSender::protoSend(annotator::HttpMessage &message) {
-    size_t payloadSize = message.ByteSizeLong() + 4;
-    char payload[payloadSize];
-    memset(payload, '\0', payloadSize);
-    google::protobuf::io::ArrayOutputStream aos(payload, payloadSize);
-    google::protobuf::io::CodedOutputStream codedOutputStream(&aos);
-
-    codedOutputStream.WriteVarint32(message.ByteSizeLong());
-    message.SerializeToCodedStream(&codedOutputStream);
-
-    if (send(sockFd, payload, payloadSize, 0) < 0){
-        std::cerr << "HttpDataReSender: Failed to send data to Joiner!" << std::endl;
-    }
+    return protoMessage;
 }

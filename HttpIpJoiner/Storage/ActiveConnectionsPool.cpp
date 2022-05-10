@@ -4,6 +4,7 @@
 
 #include "ActiveConnectionsPool.h"
 #include "../Utils/LoggerCsv.h"
+#include <numeric>
 
 void
 ActiveConnectionsPool::processMessage(annotator::IFMessage &message) {
@@ -21,25 +22,29 @@ ActiveConnectionsPool::processMessage(annotator::IFMessage &message) {
         default:
             break;
     }
-    return;
 
+    std::string action;
     switch (res) {
         case ADDED:
-            std::cout<<PRINT_OFFSET<<"-Added:" << std::endl;
+            action = "Added, ";
             break;
         case REMOVED:
-            std::cout<<PRINT_OFFSET<<"-Removed:" <<std::endl;
+            action = "Removed, ";
             break;
         case NOP:
-            std::cout<<PRINT_OFFSET<<"-Nop" <<std::endl;
+            action = "Nop, ";
             break;
         case TCP_FIN_HOST_SET:
-            std::cout<<PRINT_OFFSET<<"-TCP client set" <<std::endl;
+            action = "TCP_FIN_Host, ";
             break;
         case TCP_FIN_CLIENT_SET:
-            std::cout<<PRINT_OFFSET<<"-TCP host set" <<std::endl;
+            action = "TCP_FIN_Client, ";
+            break;
+        default:
+            throw std::runtime_error("Unexpected result of an action!");
             break;
     }
+    LoggerCsv::log(message, "/Users/jan.kala/action_log.txt", action.c_str());
 
 }
 
@@ -57,17 +62,22 @@ void ActiveConnectionsPool::processMessage(annotator::HttpMessage &msg) {
             break;
     }
 
+    std::string action;
     switch (res) {
         case PAIRED:
-//            std::cout << "PAIRED! " << msg.hostname() << std::endl;
+            action = "Paired, ";
             succ++;
             break;
-        default:
-//            std::cout << "Failed to pair: " << (msg.protocol() == annotator::HttpMessage_RequestProtocol_HTTP ? "http:" : "https:")  << msg.hostname() << std::endl;
-//            LoggerCsv::log(msg);
+        case NOP:
+            action = "Match_not_found, ";
             failed++;
             break;
+        default:
+            throw std::runtime_error("Unexpected result of an action!");
+            break;
     }
+
+    LoggerCsv::log(msg, "/Users/jan.kala/action_log.txt", action.c_str());
 
 //    auto rate = (float(succ) / (float(succ) + float(failed))) * 100;
 //    std::cout << "rate: " << rate << "%" << std::endl;
@@ -82,7 +92,7 @@ ActiveConnectionsPool::add(annotator::IFMessage &msg) {
 
     // Create new SocketEntry and link it to SocketState
     auto newSocketEntry = proto2socketEntry(msg);
-    newSocketEntry.ts_start = msg.timestamp_s();
+    newSocketEntry.ts_start = msg.timestamp_packetcaptured();
     socketHistory.connections.push_back(newSocketEntry);
 
     SocketState_t newSocketState;
@@ -169,7 +179,7 @@ ActiveConnectionsPool::setFinOrRemove(annotator::IFMessage &msg) {
         // Check that modified connection isn't closed
         if (socket_it->second.tcp.FIN_client && socket_it->second.tcp.FIN_host) {
             // set the end of the socket connection
-            socket_it->second.socketEntry->ts_end = msg.timestamp_s();
+            socket_it->second.socketEntry->ts_end = msg.timestamp_packetcaptured();
 
             // remove closed connection from vector
             res = remove(pool_it, server_it, socket_it);
@@ -191,7 +201,7 @@ ActiveConnectionsPool::remove(annotator::IFMessage &msg) {
         socket_it != server_it->second.sockets.end()) {
 
         // Set the end timestamp to the SocketEntry
-        socket_it->second.socketEntry->ts_end = msg.timestamp_s();
+        socket_it->second.socketEntry->ts_end = msg.timestamp_packetcaptured();
     }
 
     return remove(pool_it, server_it, socket_it);
@@ -443,4 +453,10 @@ ActiveConnectionsPool::printPool() {
             }
         }
     }
+}
+
+float ActiveConnectionsPool::getAverageDelay() {
+    auto sum = std::reduce(ifDelays.begin(), ifDelays.end());
+    float count = ifDelays.size();
+    return count/sum;
 }

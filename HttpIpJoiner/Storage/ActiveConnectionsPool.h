@@ -156,7 +156,6 @@ public:
     // Actions for Http Re-Sender messages
     ActionResult addHttpRequestToServer(annotator::HttpMessage &msg);
 
-
     // Helper functions
     static ServerKey_t proto2serverKey(annotator::IFMessage &msg);
     static ServerKey_t proto2serverKey(annotator::HttpMessage &msg);
@@ -187,14 +186,17 @@ public:
     int failed = 0;
 
     // queue for storing messages
-    std::queue<annotator::IFMessage> messageQ;
-    std::mutex messageQ_mutex;
+    std::queue<annotator::IFMessage> IFMessageQ;
+    std::mutex IFMessageQ_mutex;
 
     ServerConnectionList serverHistory;
     SocketConnectionList socketHistory;
 
     static SocketConnectionList::SocketEntry proto2socketEntry(annotator::IFMessage &msg);
     static ServerConnectionList::ServerEntry proto2serverEntry(annotator::IFMessage &msg);
+
+    std::vector<int> ifDelays = {1};
+    float getAverageDelay();
 };
 
 

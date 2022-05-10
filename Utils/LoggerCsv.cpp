@@ -7,24 +7,10 @@
 #include <fstream>
 #include <ostream>
 
-void LoggerCsv::log(LoggerCsv::InterfaceInfo info) {
-    std::string sep = ", ";
-    std::cout<< info.timestamp << sep
-             << "Interface" << sep
-             << info.type << ","
-             << "\"" << info.server_name << "\",\""
-             << " src " << info.srcIP << " : " << info.srcPort << " |"
-             << " dst " << info.dstIP << " : " << info.dstPort << "\""
-             << std::endl;
-}
-
-void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath) {
+void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath,  const char *note) {
     std::ofstream of;
     std::ostream out = checkFileOutput(outputPath, of);
-
     std::string sep = ", ";
-    std::string timestamp =
-            std::to_string(message.timestamp_s()) + "." + std::to_string(message.timestamp_ms());
 
     std::string srcIP, dstIP;
     if (message.ipversion() == 4){
@@ -67,16 +53,17 @@ void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath) {
             break;
     }
 
-    out<< message.timestamp_s() << "." << std::setfill('0') << std::setw(6) << message.timestamp_ms() << sep
-             << "Interface" << sep
-             << "\"" << message.servername()<< "\", "
-             << msgType << ",\""
-             << "src " << srcIP << " : " << message.srcport() << " |"
-             << " dst " << dstIP << " : " << message.dstport() << "\""
-             << std::endl;
+    out << (note ? note : "")
+        << message.timestamp_packetcaptured() << sep
+        << "Interface" << sep
+        << "\"" << message.servername()<< "\", "
+        << msgType << ",\""
+        << "src " << srcIP << " : " << message.srcport() << " |"
+        << " dst " << dstIP << " : " << message.dstport() << "\""
+        << std::endl;
 }
 
-void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath) {
+void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath, const char *note) {
     std::ofstream of;
     std::ostream out = checkFileOutput(outputPath, of);
 
@@ -93,7 +80,8 @@ void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath) {
             break;
     }
 
-    out << message.timestamp_s() << "."  << message.timestamp_ms()
+    out << (note ? note : "")
+        << message.timestamp_eventtriggered()
         << ", Browser, " << msgType
         << "," << message.hostname() << ",\""
         << message.data() << "\""

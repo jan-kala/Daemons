@@ -25,8 +25,8 @@ public:
         } dst;
         uint32_t dstPort;
 
-        uint64_t ts_start;
-        uint64_t ts_end = 69;
+        uint64_t ts_start = 0;
+        uint64_t ts_end = 0;
     };
 
     static void print(SocketEntry *entry){
@@ -48,9 +48,12 @@ public:
             inet_ntop(AF_INET6, &(entry->dst.ipv6), ipString, INET6_ADDRSTRLEN);
             dstIP = ipString;
         }
-        std::cout << "  s-> " << srcIP << ":" << entry->srcPort << "\t"
-                              << dstIP << ":" << entry->dstPort << "\t"
-                              << "[" << entry->ts_start << " - " << entry->ts_end << "]" << std::endl;
+        std::cout
+            << "  s-> "
+            << "[" << entry->ts_start << " - " << entry->ts_end << "] "
+            << "[" << srcIP << " " << entry->srcPort << "] "
+            << "[" << dstIP << " " << entry->dstPort << "]"
+            << std::endl;
     }
 
     std::list<SocketEntry> connections;

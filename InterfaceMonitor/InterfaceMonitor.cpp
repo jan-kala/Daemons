@@ -3,16 +3,10 @@
 //
 
 #include "InterfaceMonitor.h"
-#include "PacketDefinitions.h"
 #include <iostream>
-#include <pcap.h>
 #include <sstream>
 #include <vector>
 #include <sys/un.h>
-#include <netinet/ip.h>
-#include <netinet/ip6.h>
-
-#include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
 
 #define IFMONITOR_RETURN_SUCCESS 0
 #define IFMONITOR_RETURN_ERROR 1
@@ -20,10 +14,9 @@
 /**
  * BPF Filter for capturing.
  *
- * First is TLS filter for capturing Client Hello messages,
- * that contains SNI.
+ * Contains TLS filter for capturing Client Hello messages,
+ * that has SNI set.
  * Filter is taken from https://gist.github.com/LeeBrotherston/92cc2637f33468485b8f
- * Last line of filter is HTTP GET request filter.
  *
  * ipv4 tcp FIN is set
  * ipv6 tcp FIN is set
@@ -51,7 +44,8 @@
     "or "  \
     "(tcp and tcp[32:4] =  0x47455420) "
 
-int InterfaceMonitor::run() {
+int
+InterfaceMonitor::run() {
     char errbuf[PCAP_ERRBUF_SIZE];
     pcap_if_t* devList;
     if (0 != pcap_findalldevs(&devList, errbuf)){
@@ -82,17 +76,17 @@ int InterfaceMonitor::run() {
     return IFMONITOR_RETURN_SUCCESS;
 }
 
-void InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *header, const u_char *packet)
+void
+InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *header, const u_char *packet)
 {
     auto* self = (InterfaceMonitor*)cookie;
 
     annotator::IFMessage message;
     message.set_type(annotator::IFMessage_MessageType_UNWANTED_MESSAGE);
 
-    // Grab the timestamps from the capture info
-    uint64_t millis = (header->ts.tv_sec * (uint64_t)1000000) + (header->ts.tv_usec );
-    message.set_timestamp_s(millis);
-    message.set_timestamp_ms(0);
+    // Grab the timestamps from the capture info (& make it microseconds)
+    uint64_t microseconds = (header->ts.tv_sec * (uint64_t)1000000) + (header->ts.tv_usec );
+    message.set_timestamp_packetcaptured(microseconds);
 
     u_char* payload;
     payload = parseEthernetIpTcpHeaders(packet, message);
@@ -121,60 +115,55 @@ void InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr 
     }
 
     if (message.type() != annotator::IFMessage_MessageType_UNWANTED_MESSAGE) {
-        auto now = std::chrono::system_clock::now().time_since_epoch();
-        std::cout<< now.count() << std::endl;
-        LoggerCsv::log(message);
-        protoSend(message, &(self->sockFd));
+        // Set the timestamp of sending
+        auto timestampNow = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::system_clock::now().time_since_epoch()
+        );
+        message.set_timestamp_messagesent(timestampNow.count());
+
+        // Send it to Joiner
+        try {
+            protoSend(message, &(self->sockFd));
+            LoggerCsv::log(message);
+        } catch (SendMessageFailed& e){
+            LoggerCsv::log(message, nullptr, "FAILED_TO_SEND, ");
+        }
+
     }
 
 }
 
-u_char * InterfaceMonitor::parseEthernetIpTcpHeaders(const u_char *packet, annotator::IFMessage &message) {
-    const struct sniff_ethernet *ethernet; /* The ethernet header */
-    const struct sniff_tcp *tcp; /* The TCP header */
+u_char *
+InterfaceMonitor::parseEthernetIpTcpHeaders(const u_char *packet, annotator::IFMessage &message) {
+    uint16_t size_ethernet_header = 14;
     uint16_t size_ip_header;
+    uint16_t size_tcp_header;
 
-    // Skip the Ethernet header;
-    auto ip = (struct ip*)(packet + SIZE_ETHERNET);
+    // Skip the Ethernet header and read IP header
+    auto ip = (struct ip*)(packet + size_ethernet_header);
     if (ip->ip_v == 4) {
-        size_ip_header = parseIpV4Headers(ip, message);
+        size_ip_header = parseIpV4Header(ip, message);
     } else if (ip->ip_v == 6){
-        size_ip_header = parseIpV6Headers((ip6_hdr *) ip, message);
+        size_ip_header = parseIpV6Header((ip6_hdr *) ip, message);
     } else {
         throw std::runtime_error("Unsupported IP version!");
     }
 
     // Move to the TCP headers
-    tcp = (struct sniff_tcp*) (packet + SIZE_ETHERNET + size_ip_header);
-    u_int sizeTcp = TH_OFF(tcp)*4;
-    if (sizeTcp < 20) {
-        throw std::runtime_error("Invalid TCP header size");
-    }
-
-    // grab the ports
-    message.set_srcport(ntohs(tcp->th_sport));
-    message.set_dstport( ntohs(tcp->th_dport));
-
-    // Set the correct TCP type if any
-    if (tcp->th_flags & TH_FIN) {
-        message.set_type(annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN);
-    }
-    // RST has higher priority, so it can rewrite FIN message type
-    if (tcp->th_flags & TH_RST){
-        message.set_type(annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST);
-    }
+    auto tcp = (struct tcphdr*) (packet + size_ethernet_header + size_ip_header);
+    size_tcp_header = parseTcpHeader(tcp, message);
 
     // return pointer to the payload
-    return (u_char *)(packet + SIZE_ETHERNET + size_ip_header + sizeTcp);
+    return (u_char *)(packet + size_ethernet_header + size_ip_header + size_tcp_header);
 }
 
-uint16_t InterfaceMonitor::parseIpV4Headers(const ip *ipPayload, annotator::IFMessage &message) {
+uint16_t
+InterfaceMonitor::parseIpV4Header(const ip *ipPayload, annotator::IFMessage &message) {
     uint16_t hdrSize = ipPayload->ip_hl * 4;
     // Check the size of IP header
     if (hdrSize < 20){
         throw std::runtime_error("Invalid IP header size");
     }
-
     message.set_ipversion(4);
 
     // Grab the IPs from the header
@@ -184,9 +173,10 @@ uint16_t InterfaceMonitor::parseIpV4Headers(const ip *ipPayload, annotator::IFMe
     return hdrSize;
 }
 
-uint16_t InterfaceMonitor::parseIpV6Headers(const ip6_hdr *ipPayload, annotator::IFMessage &message) {
+uint16_t
+InterfaceMonitor::parseIpV6Header(const ip6_hdr *ipPayload, annotator::IFMessage &message) {
     // IPv6 header length is always 40 bytes and it's not included in the header anyway
-
+    // so no check for header size
     message.set_ipversion(6);
 
     auto srcip = (const char *)&ipPayload->ip6_src;
@@ -199,11 +189,37 @@ uint16_t InterfaceMonitor::parseIpV6Headers(const ip6_hdr *ipPayload, annotator:
     return 40;
 }
 
-bool InterfaceMonitor::isHttp(const u_char *payload) {
+uint16_t
+InterfaceMonitor::parseTcpHeader(const struct tcphdr *tcpPayload, annotator::IFMessage &message){
+    uint16_t size_tcp_header = tcpPayload->th_off * 4;
+    if (size_tcp_header < 20) {
+        throw std::runtime_error("Invalid TCP header size");
+    }
+
+    // grab the ports
+    message.set_srcport(ntohs(tcpPayload->th_sport));
+    message.set_dstport( ntohs(tcpPayload->th_dport));
+
+    // Set the correct TCP type if any
+    if (tcpPayload->th_flags & TH_FIN) {
+        message.set_type(annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN);
+    }
+    // RST has higher priority, so it can rewrite FIN message type
+    if (tcpPayload->th_flags & TH_RST){
+        message.set_type(annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST);
+    }
+
+    return size_tcp_header;
+}
+
+bool
+InterfaceMonitor::isHttp(const u_char *payload) {
+    // Look for GET method
     return (payload[0] == 'G' && payload[1] == 'E' && payload[2] =='T');
 }
 
-void InterfaceMonitor::parseHTTPPayload(std::string &payload, annotator::IFMessage &message) {
+void
+InterfaceMonitor::parseHTTPPayload(std::string &payload, annotator::IFMessage &message) {
     // Clean the payload of all the \r
     payload.erase(std::remove(payload.begin(), payload.end(), '\r'), payload.end());
 
@@ -233,7 +249,8 @@ void InterfaceMonitor::parseHTTPPayload(std::string &payload, annotator::IFMessa
     message.set_servername(host + resourcePath);
 }
 
-bool InterfaceMonitor::parseTlsPayload(u_char *payload, annotator::IFMessage &message) {
+bool
+InterfaceMonitor::parseTlsPayload(u_char *payload, annotator::IFMessage &message) {
     int sniLen;
     std::string serverName;
     char* sniStart = getTlsSni((u_char*)payload, &sniLen);
@@ -247,7 +264,8 @@ bool InterfaceMonitor::parseTlsPayload(u_char *payload, annotator::IFMessage &me
     return true;
 }
 
-char *InterfaceMonitor::getTlsSni(u_char *bytes, int* len)
+char *
+InterfaceMonitor::getTlsSni(u_char *bytes, int* len)
 {
     u_char *curr;
     u_char sidlen = bytes[43];
@@ -279,22 +297,3 @@ char *InterfaceMonitor::getTlsSni(u_char *bytes, int* len)
     if (curr != maxchar) return nullptr;
     return nullptr; //SNI was not present
 }
-
-void InterfaceMonitor::protoSend(annotator::IFMessage &message, int *socket) {
-
-    size_t payloadSize = message.ByteSizeLong() + 4;
-    char payload[payloadSize];
-    memset(payload, '\0', payloadSize);
-    google::protobuf::io::ArrayOutputStream aos(payload, payloadSize);
-    google::protobuf::io::CodedOutputStream codedOutputStream(&aos);
-
-    codedOutputStream.WriteVarint32(message.ByteSizeLong());
-    message.SerializeToCodedStream(&codedOutputStream);
-
-    if (send(*socket, payload, payloadSize, 0) < 0){
-        std::cerr << "IFMonitor: Failed to send data to Joiner! " << std::endl;
-    }
-}
-
-
-

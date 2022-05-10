@@ -17,6 +17,11 @@ public:
     };
 
     static void print(ServerEntry *entry){
+        // We don't care about connections without any requests
+        if (entry->requests.empty()){
+            return;
+        }
+
         std::cout << entry->serverNameIndicator << std::endl;
         for (auto it : entry->sockets){
             SocketConnectionList::print(it);

@@ -37,3 +37,23 @@ void ProtobufSenderBase::connectSocket() {
 
     this->sockFd = sock;
 }
+
+template<class T>
+void ProtobufSenderBase::protoSend(T& message, int *socket) {
+    size_t payloadSize = message.ByteSizeLong() + 4;
+    char payload[payloadSize];
+    memset(payload, '\0', payloadSize);
+    google::protobuf::io::ArrayOutputStream aos(payload, payloadSize);
+    google::protobuf::io::CodedOutputStream codedOutputStream(&aos);
+
+    codedOutputStream.WriteVarint32(message.ByteSizeLong());
+    message.SerializeToCodedStream(&codedOutputStream);
+
+    if (send(*socket, payload, payloadSize, 0) < 0){
+        throw SendMessageFailed();
+    }
+}
+template void
+ProtobufSenderBase::protoSend(annotator::IFMessage& message, int *socket);
+template void
+ProtobufSenderBase::protoSend(annotator::HttpMessage& message, int *socket);

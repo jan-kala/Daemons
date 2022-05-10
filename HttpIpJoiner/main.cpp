@@ -10,7 +10,7 @@
 
 int main() {
     ActiveConnectionsPool pool;
-    pool.messageQ_mutex.unlock();
+    pool.IFMessageQ_mutex.unlock();
 
     std::string ifMonitorListenerDomainSocketPath = "/tmp/IFMonitor";
     IFMonitorListener ifMonitorListener(ifMonitorListenerDomainSocketPath, &pool);
@@ -19,6 +19,8 @@ int main() {
     std::string httpDataReSenderDomainSocketPath = "/tmp/HttpDataReSender";
     HttpDataReSenderListener httpDataReSenderListener(httpDataReSenderDomainSocketPath, &pool);
     httpDataReSenderListener.run();
+
+    // TODO Dispatch process
 
     while (true) {
         sleep(10);

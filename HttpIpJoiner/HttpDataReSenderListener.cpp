@@ -26,72 +26,48 @@ void HttpDataReSenderListener::run() {
 
 void HttpDataReSenderListener::worker() {
     std::unique_lock<std::mutex> lock(worker_mutex);
-    std::chrono::microseconds us(50);
+    std::chrono::microseconds us(10);
 
     connectSocket();
-    std::cout<< "connected" << std::endl;
+    std::cout<< "Re-sender connected" << std::endl;
 
-    int dataLen = 0;
-    char lenghtBuffer[4];
+    annotator::HttpMessage message;
 
     while (worker_cv.wait_for(lock, us) == std::cv_status::timeout) {
-        if ((dataLen = recv(this->acceptSockFd, lenghtBuffer, 4, MSG_PEEK))==-1) {
-            std::cerr<< "Failed to read length of the message";
-            return;
-        };
-        if (dataLen == 0){
+        try {
+            message = recvMessage<annotator::HttpMessage>();
+        } catch (SocketDisconnected& e){
             connectSocket();
-            std::cout<< "connected" << std::endl;
+            std::cout<< "Re-sender connected" << std::endl;
             continue;
         }
-
-        // READ header
-        google::protobuf::uint32 size;
-        google::protobuf::io::ArrayInputStream ais(lenghtBuffer, 4);
-        google::protobuf::io::CodedInputStream codedInputStream(&ais);
-        codedInputStream.ReadVarint32(&size); // now we have the size
-
-        // READ rest of the body
-        char payload[size+4];
-        int bytecount;
-        if ((bytecount = recv(this->acceptSockFd, payload, size+4, MSG_WAITSTREAM)) == -1){
-            std::cerr<<"Failed to recv()"<<std::endl;
-            return;
-        }
-        google::protobuf::io::ArrayInputStream ais2(payload, size+4);
-        google::protobuf::io::CodedInputStream codedInputStream2(&ais2);
-        codedInputStream2.ReadVarint32(&size);
-        google::protobuf::io::CodedInputStream::Limit msgLimit = codedInputStream2.PushLimit(size);
-        annotator::HttpMessage message;
-        message.ParseFromCodedStream(&codedInputStream2);
-        codedInputStream2.PopLimit(msgLimit);
 
         // wait for Interface messages
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
+        // Start processing
         while (true){
-            pool->messageQ_mutex.lock();
-            if (!pool->messageQ.empty()){
-                auto messageFromQ = pool->messageQ.front();
-
-                if (messageFromQ.timestamp_s() <= message.timestamp_s()) {
-
-//                    LoggerCsv::log(messageFromQ);
+            // Check the IFMessage queue for incoming messages.
+            pool->IFMessageQ_mutex.lock();
+            if (!pool->IFMessageQ.empty()){
+                // There is some IFMessage, check timestamp
+                auto messageFromQ = pool->IFMessageQ.front();
+                if (messageFromQ.timestamp_packetcaptured() <= message.timestamp_eventtriggered()) {
+                    // IFMessage should be processed first
                     pool->processMessage(messageFromQ);
+                    pool->IFMessageQ.pop();
 
-                    pool->messageQ.pop();
-
-                    pool->messageQ_mutex.unlock();
+                    pool->IFMessageQ_mutex.unlock();
                     continue;
                 }
             }
-
-            pool->messageQ_mutex.unlock();
+            // IFMessage queue is empty or HTTPMessage should be processed next
+            pool->IFMessageQ_mutex.unlock();
             break;
         }
-//        LoggerCsv::log(message);
-        pool->processMessage(message);
 
+        // Process HTTPMessage
+        pool->processMessage(message);
 
     }
 }

@@ -17,7 +17,6 @@ set(InterfaceMonitor_SRCS
         main.cpp
         InterfaceMonitor.h
         InterfaceMonitor.cpp
-        PacketDefinitions.h
         ../Utils/LoggerCsv.cpp
         ../Utils/ProtobufSenderBase.cpp)
 

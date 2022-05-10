@@ -17,7 +17,7 @@ public:
     explicit IFMonitorListener(std::string &domainSocketPath, ActiveConnectionsPool *pool);
     ~IFMonitorListener();
     void run();
-private:
+protected:
     void worker();
 
     std::thread             worker_thread;
