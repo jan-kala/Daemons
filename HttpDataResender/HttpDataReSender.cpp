@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define LOG_FILE_PATH "/tmp/WebAnnotator/browser.csv"
+#define LOG_FILE_PATH "/Users/jan.kala/HttpReSender.csv"
 
 int HttpDataReSender::run() {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -30,7 +30,7 @@ int HttpDataReSender::run() {
             protoSend(protoMessage, &sockFd);
             LoggerCsv::log(protoMessage, LOG_FILE_PATH);
         } catch (SendMessageFailed& e){
-            LoggerCsv::log(protoMessage, LOG_FILE_PATH, "FAILED_TO_SEND, ");
+            LoggerCsv::log(protoMessage, LOG_FILE_PATH, "FAILED_TO_SEND");
         }
     }
 }

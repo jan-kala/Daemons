@@ -42,9 +42,6 @@ void HttpDataReSenderListener::worker() {
             continue;
         }
 
-        // wait for Interface messages
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
         // Start processing
         while (true){
             // Check the IFMessage queue for incoming messages.

@@ -10,13 +10,13 @@
 #include <arpa/inet.h>
 #include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
 #include "../ProtobufMessages/build/HTTPMessage.pb.h"
-#include "ServerConnectionList.h"
-#include "SocketConnectionList.h"
+#include "ServerEntry.h"
+#include "SocketEntry.h"
 
 #define PRINT_OFFSET ""
 
 typedef struct SocketState {
-    SocketConnectionList::SocketEntry *socketEntry = nullptr;
+    SocketEntry *socketEntry = nullptr;
     struct tcpState {
         bool FIN_client = false;
         bool FIN_host = false;
@@ -74,7 +74,7 @@ typedef struct SocketKey {
 typedef std::map<SocketKey_t, SocketState_t> Sockets_t;
 
 typedef struct ServerConnection {
-    ServerConnectionList::ServerEntry* serverEntry = nullptr;
+    ServerEntry* serverEntry = nullptr;
     Sockets_t sockets;
 } ServerConnection_t;
 typedef std::string ServerNameKey_t;
@@ -189,14 +189,13 @@ public:
     std::queue<annotator::IFMessage> IFMessageQ;
     std::mutex IFMessageQ_mutex;
 
-    ServerConnectionList serverHistory;
-    SocketConnectionList socketHistory;
+    std::list<ServerEntry> serverHistory;
+    std::list<SocketEntry> socketHistory;
 
-    static SocketConnectionList::SocketEntry proto2socketEntry(annotator::IFMessage &msg);
-    static ServerConnectionList::ServerEntry proto2serverEntry(annotator::IFMessage &msg);
+    static SocketEntry proto2socketEntry(annotator::IFMessage &msg);
+    static ServerEntry proto2serverEntry(annotator::IFMessage &msg);
 
-    std::vector<int> ifDelays = {1};
-    float getAverageDelay();
+
 };
 
 

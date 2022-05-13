@@ -5,7 +5,6 @@ cmake_minimum_required(VERSION 3.0.0)
 project(HttpDataReSender)
 
 # Dependencies
-message(${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/CPM.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/CPM.cmake)
 
 CPMAddPackage(

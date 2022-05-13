@@ -6,7 +6,7 @@
 #define HTTPIPJOINER_STORAGE_H
 
 #include "ActiveConnectionsPool.h"
-#include "ServerConnectionList.h"
-#include "SocketConnectionList.h"
+#include "ServerEntry.h"
+#include "SocketEntry.h"
 
 #endif //HTTPIPJOINER_STORAGE_H

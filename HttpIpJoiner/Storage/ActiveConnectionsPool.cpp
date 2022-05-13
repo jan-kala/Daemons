@@ -26,25 +26,25 @@ ActiveConnectionsPool::processMessage(annotator::IFMessage &message) {
     std::string action;
     switch (res) {
         case ADDED:
-            action = "Added, ";
+            action = "Added     ";
             break;
         case REMOVED:
-            action = "Removed, ";
+            action = "Removed   ";
             break;
         case NOP:
-            action = "Nop, ";
+            action = "Nop       ";
             break;
         case TCP_FIN_HOST_SET:
-            action = "TCP_FIN_Host, ";
+            action = "Fin Host  ";
             break;
         case TCP_FIN_CLIENT_SET:
-            action = "TCP_FIN_Client, ";
+            action = "Fin Client";
             break;
         default:
             throw std::runtime_error("Unexpected result of an action!");
             break;
     }
-    LoggerCsv::log(message, "/Users/jan.kala/action_log.txt", action.c_str());
+    LoggerCsv::log(message, "/Users/jan.kala/JoinerActionLog.csv", action.c_str());
 
 }
 
@@ -52,6 +52,7 @@ void ActiveConnectionsPool::processMessage(annotator::HttpMessage &msg) {
     ActionResult res;
     switch (msg.type()){
         case annotator::HttpMessage_MessageType_NEW_REQUEST:
+            res = NOP;
             break;
 
         case annotator::HttpMessage_MessageType_PAIRING:
@@ -59,17 +60,19 @@ void ActiveConnectionsPool::processMessage(annotator::HttpMessage &msg) {
             break;
 
         default:
+            res = NOP;
             break;
     }
 
     std::string action;
     switch (res) {
         case PAIRED:
-            action = "Paired, ";
+            action = "Paired    ";
             succ++;
             break;
         case NOP:
-            action = "Match_not_found, ";
+            action = "!NO MATCH!";
+            LoggerCsv::log(msg, "/Users/jan.kala/JoinerErrorLog.csv", action.c_str());
             failed++;
             break;
         default:
@@ -77,7 +80,7 @@ void ActiveConnectionsPool::processMessage(annotator::HttpMessage &msg) {
             break;
     }
 
-    LoggerCsv::log(msg, "/Users/jan.kala/action_log.txt", action.c_str());
+    LoggerCsv::log(msg, "/Users/jan.kala/JoinerActionLog.csv", action.c_str());
 
 //    auto rate = (float(succ) / (float(succ) + float(failed))) * 100;
 //    std::cout << "rate: " << rate << "%" << std::endl;
@@ -93,10 +96,10 @@ ActiveConnectionsPool::add(annotator::IFMessage &msg) {
     // Create new SocketEntry and link it to SocketState
     auto newSocketEntry = proto2socketEntry(msg);
     newSocketEntry.ts_start = msg.timestamp_packetcaptured();
-    socketHistory.connections.push_back(newSocketEntry);
+    socketHistory.push_back(newSocketEntry);
 
     SocketState_t newSocketState;
-    newSocketState.socketEntry = &(socketHistory.connections.back());
+    newSocketState.socketEntry = &(socketHistory.back());
 
     // Try to find pool entry
     auto pool_it =activeConnectionPool.find(serverKey);
@@ -113,32 +116,35 @@ ActiveConnectionsPool::add(annotator::IFMessage &msg) {
             auto socket_it = server_it->second.sockets.find(socketKey);
 
             if (socket_it == server_it->second.sockets.end()){
-                server_it->second.serverEntry->sockets.push_back(&(socketHistory.connections.back()));
+                server_it->second.serverEntry->sockets.push_back(&(socketHistory.back()));
                 server_it->second.sockets.insert({socketKey, newSocketState});
+                socketHistory.back().serverEntry = server_it->second.serverEntry;
             } else {
                 // Duplicated client hello, remove the last entry from history (we already have it there)
-                socketHistory.connections.pop_back();
+                socketHistory.pop_back();
             }
 
         } else {
             // Create ServerEntry, link with last socket from history and add to server history
             auto newServerEntry = proto2serverEntry(msg);
-            newServerEntry.sockets.push_back(&(socketHistory.connections.back()));
-            serverHistory.connections.push_back(newServerEntry);
+            newServerEntry.sockets.push_back(&(socketHistory.back()));
+            serverHistory.push_back(newServerEntry);
+            socketHistory.back().serverEntry = &(serverHistory.back());
 
             ServerConnection_t newServerConnection;
-            newServerConnection.serverEntry = &(serverHistory.connections.back());
+            newServerConnection.serverEntry = &(serverHistory.back());
             newServerConnection.sockets.insert({socketKey, newSocketState});
 
             pool_it->second.insert({serverName, newServerConnection});
         }
     } else {
         auto newServerEntry = proto2serverEntry(msg);
-        newServerEntry.sockets.push_back(&(socketHistory.connections.back()));
-        serverHistory.connections.push_back(newServerEntry);
+        newServerEntry.sockets.push_back(&(socketHistory.back()));
+        serverHistory.push_back(newServerEntry);
+        socketHistory.back().serverEntry = &(serverHistory.back());
 
         ServerConnection_t newServerConnection;
-        newServerConnection.serverEntry = &(serverHistory.connections.back());
+        newServerConnection.serverEntry = &(serverHistory.back());
         newServerConnection.sockets.insert({socketKey, newSocketState});
 
         ServerNames_t newServerNames;
@@ -218,8 +224,8 @@ ActiveConnectionsPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator
 
         if (server_it->second.sockets.empty()){
             // DEBUG PRINT
-            auto entry = server_it->second.serverEntry;
-            ServerConnectionList::print(entry);
+            auto entry = server_it->second.serverEntry->getEntryAsJson();
+            std::cout << entry.dump(2) << std::endl;
 
             // remove server entry
             pool_it->second.erase(server_it);
@@ -306,9 +312,9 @@ ActiveConnectionsPool::proto2socketKeySwapped(annotator::IFMessage &msg) {
     return connState;
 }
 
-SocketConnectionList::SocketEntry
+SocketEntry
 ActiveConnectionsPool::proto2socketEntry(annotator::IFMessage &msg){
-    SocketConnectionList::SocketEntry newEntry;
+    SocketEntry newEntry;
     newEntry.ipVersion = msg.ipversion();
     if (msg.ipversion() == 4){
         newEntry.src.ipv4.s_addr = msg.srcv4();
@@ -323,9 +329,9 @@ ActiveConnectionsPool::proto2socketEntry(annotator::IFMessage &msg){
     return newEntry;
 }
 
-ServerConnectionList::ServerEntry
+ServerEntry
 ActiveConnectionsPool::proto2serverEntry(annotator::IFMessage &msg){
-    ServerConnectionList::ServerEntry newEntry;
+    ServerEntry newEntry;
     newEntry.serverNameIndicator = msg.servername();
     return newEntry;
 }
@@ -453,10 +459,4 @@ ActiveConnectionsPool::printPool() {
             }
         }
     }
-}
-
-float ActiveConnectionsPool::getAverageDelay() {
-    auto sum = std::reduce(ifDelays.begin(), ifDelays.end());
-    float count = ifDelays.size();
-    return count/sum;
 }

@@ -53,11 +53,16 @@ InterfaceMonitor::run() {
         return IFMONITOR_RETURN_ERROR;
     }
 
-    pcap_t* handle = pcap_open_live(devList[0].name, BUFSIZ, 0, 1000, errbuf);
-    if (handle == nullptr){
-        std::cerr << "Failed to open device with error: " << errbuf << std::endl;
-        return IFMONITOR_RETURN_ERROR;
-    }
+//    pcap_t* handle = pcap_open_live(devList[0].name, BUFSIZ, 0, 1000, errbuf);
+//    if (handle == nullptr){
+//        std::cerr << "Failed to open device with error: " << errbuf << std::endl;
+//        return IFMONITOR_RETURN_ERROR;
+//    }
+
+    pcap_t* handle = pcap_create(devList[0].name, errbuf);
+    pcap_set_immediate_mode(handle, 1);
+    pcap_activate(handle);
+
 
     struct bpf_program filter = {};
     if (-1 == pcap_compile(handle, &filter, PACKET_CAPTURE_FILTER, 0, PCAP_NETMASK_UNKNOWN)){
@@ -95,13 +100,9 @@ InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *head
         return;
     }
 
-    if (message.type() == annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN) {
-        // For logging purpose
-        message.set_servername("[TCP FIN]");
-    } else if (message.type() == annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST) {
-        // For logging purpose
-        message.set_servername("[TCP RST]");
-    } else {
+    if (message.type() != annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN &&
+        message.type() != annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST)
+    {
         // Message if HTTP or TLS
         if (isHttp(payload)) {
             message.set_type(annotator::IFMessage_MessageType_HTTP);
@@ -124,9 +125,9 @@ InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *head
         // Send it to Joiner
         try {
             protoSend(message, &(self->sockFd));
-            LoggerCsv::log(message);
+            LoggerCsv::log(message, "/Users/jan.kala/InterfaceMonitor.csv");
         } catch (SendMessageFailed& e){
-            LoggerCsv::log(message, nullptr, "FAILED_TO_SEND, ");
+            LoggerCsv::log(message, "/Users/jan.kala/InterfaceMonitor.csv", "FAILED_TO_SEND!");
         }
 
     }
