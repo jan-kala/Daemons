@@ -19,12 +19,6 @@ int HttpDataReSender::run() {
         auto nativeMessage = getNativeMessage();
         auto protoMessage = json2protobuf(nativeMessage);
 
-        // Get and set current timestamp
-        auto timestampNow = std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::system_clock::now().time_since_epoch()
-        );
-        protoMessage.set_timestamp_messagesent(timestampNow.count());
-
         // Send message to Joiner
         try {
             protoSend(protoMessage, &sockFd);

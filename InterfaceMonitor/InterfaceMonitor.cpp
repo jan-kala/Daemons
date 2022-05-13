@@ -116,11 +116,6 @@ InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *head
     }
 
     if (message.type() != annotator::IFMessage_MessageType_UNWANTED_MESSAGE) {
-        // Set the timestamp of sending
-        auto timestampNow = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::system_clock::now().time_since_epoch()
-        );
-        message.set_timestamp_messagesent(timestampNow.count());
 
         // Send it to Joiner
         try {

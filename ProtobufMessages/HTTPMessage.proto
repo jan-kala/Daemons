@@ -12,7 +12,6 @@ message HttpMessage {
     required MessageType type = 1;
 
     required uint64 timestamp_eventTriggered = 2;
-    required uint64 timestamp_messageSent = 3;
 
     enum RequestProtocol {
         HTTP = 0;
