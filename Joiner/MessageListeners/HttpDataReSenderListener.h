@@ -7,6 +7,7 @@
 
 #include "../Utils/ProtobufReceiverBase.h"
 #include "Storage/Storage.h"
+#include <condition_variable>
 #include <thread>
 #include <mutex>
 #include <vector>

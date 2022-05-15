@@ -6,6 +6,7 @@
 #define HTTPIPJOINER_DISPATCHER_H
 
 #include "../Storage/Storage.h"
+#include <condition_variable>
 #include <thread>
 
 class Dispatcher {
