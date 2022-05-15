@@ -80,7 +80,7 @@ T ProtobufReceiverBase::recvMessage() {
     // READ rest of the body
     char payload[size+4];
     int bytecount;
-    if ((bytecount = recv(this->acceptSockFd, payload, size+4, MSG_WAITSTREAM)) == -1){
+    if ((bytecount = recv(this->acceptSockFd, payload, size+4, 0)) == -1){
         std::cerr<<"Failed to recv()"<<std::endl;
         throw std::runtime_error("Failed to recv from domain socket.");
     }

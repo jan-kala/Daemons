@@ -49,7 +49,7 @@ void Dispatcher::createSocket() {
     addr.sin_port = htons(port);
 
     if (bind(newSockFd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
-        throw std::runtime_error("Filed to bind socket!");
+        throw std::runtime_error("Failed to bind socket!");
     }
 
     sockFd = newSockFd;
