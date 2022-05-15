@@ -7,6 +7,8 @@ project(InterfaceMonitor)
 find_package(Protobuf REQUIRED)
 message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")
 
+include(CMakeModules/FindPCAP.cmake)
+
 set(CMAKE_CXX_FLAGS "-lpcap")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
@@ -29,4 +31,5 @@ target_link_libraries(${executable_name}
         protobuf::libprotobuf
         -L${CMAKE_CURRENT_SOURCE_DIR}/../ProtobufMessages/build
         libProtobufMessagesLibrary.a
+        ${PCAP_LIBRARY}
 )
