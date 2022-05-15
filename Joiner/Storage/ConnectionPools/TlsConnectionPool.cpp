@@ -2,104 +2,28 @@
 // Created by Jan Kala on 21.04.2022.
 //
 
-#include "ActiveConnectionsPool.h"
+#include "TlsConnectionPool.h"
 #include "../Utils/LoggerCsv.h"
 #include <numeric>
 
-void
-ActiveConnectionsPool::processMessage(annotator::IFMessage &message) {
-    ActionResult res;
-    switch (message.type()) {
-        case annotator::IFMessage_MessageType_TLS_NEW_CONNECTION:
-            res = add(message);
-            break;
-        case annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN:
-            res = setFinOrRemove(message);
-            break;
-        case annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST:
-            res = remove(message);
-            break;
-        default:
-            break;
-    }
+TlsConnectionPool::TlsConnectionPool(std::list<ServerEntry> *serverHistory, std::list<SocketEntry> *socketHistory)
+    : serverHistory(serverHistory)
+    , socketHistory(socketHistory)
+{}
 
-    std::string action;
-    switch (res) {
-        case ADDED:
-            action = "Added     ";
-            break;
-        case REMOVED:
-            action = "Removed   ";
-            break;
-        case NOP:
-            action = "Nop       ";
-            break;
-        case TCP_FIN_HOST_SET:
-            action = "Fin Host  ";
-            break;
-        case TCP_FIN_CLIENT_SET:
-            action = "Fin Client";
-            break;
-        default:
-            throw std::runtime_error("Unexpected result of an action!");
-            break;
-    }
-    LoggerCsv::log(message, "/Users/jan.kala/JoinerActionLog.csv", action.c_str());
-
-}
-
-void ActiveConnectionsPool::processMessage(annotator::HttpMessage &msg) {
-    ActionResult res;
-    switch (msg.type()){
-        case annotator::HttpMessage_MessageType_NEW_REQUEST:
-            res = NOP;
-            break;
-
-        case annotator::HttpMessage_MessageType_PAIRING:
-            res = addHttpRequestToServer(msg);
-            break;
-
-        default:
-            res = NOP;
-            break;
-    }
-
-    std::string action;
-    switch (res) {
-        case PAIRED:
-            action = "Paired    ";
-            succ++;
-            break;
-        case NOP:
-            action = "!NO MATCH!";
-            LoggerCsv::log(msg, "/Users/jan.kala/JoinerErrorLog.csv", action.c_str());
-            failed++;
-            break;
-        default:
-            throw std::runtime_error("Unexpected result of an action!");
-            break;
-    }
-
-    LoggerCsv::log(msg, "/Users/jan.kala/JoinerActionLog.csv", action.c_str());
-
-//    auto rate = (float(succ) / (float(succ) + float(failed))) * 100;
-//    std::cout << "rate: " << rate << "%" << std::endl;
-
-}
-
-ActiveConnectionsPool::ActionResult
-ActiveConnectionsPool::add(annotator::IFMessage &msg) {
+TlsConnectionPool::ActionResult
+TlsConnectionPool::add(annotator::IFMessage &msg) {
     auto serverKey = proto2serverKey(msg);
     auto serverName = msg.servername();
     auto socketKey = proto2socketKey(msg);
 
     // Create new SocketEntry and link it to SocketState
-    auto newSocketEntry = proto2socketEntry(msg);
+    auto newSocketEntry = SocketEntry::proto2socketEntry(msg);
     newSocketEntry.ts_start = msg.timestamp_packetcaptured();
-    socketHistory.push_back(newSocketEntry);
+    socketHistory->push_back(newSocketEntry);
 
     SocketState_t newSocketState;
-    newSocketState.socketEntry = &(socketHistory.back());
+    newSocketState.socketEntry = &(socketHistory->back());
 
     // Try to find pool entry
     auto pool_it =activeConnectionPool.find(serverKey);
@@ -116,35 +40,37 @@ ActiveConnectionsPool::add(annotator::IFMessage &msg) {
             auto socket_it = server_it->second.sockets.find(socketKey);
 
             if (socket_it == server_it->second.sockets.end()){
-                server_it->second.serverEntry->sockets.push_back(&(socketHistory.back()));
+                server_it->second.serverEntry->sockets.push_back(&(socketHistory->back()));
                 server_it->second.sockets.insert({socketKey, newSocketState});
-                socketHistory.back().serverEntry = server_it->second.serverEntry;
+                socketHistory->back().serverEntry = server_it->second.serverEntry;
             } else {
-                // Duplicated client hello, remove the last entry from history (we already have it there)
-                socketHistory.pop_back();
+                // HTTP message using the same connection or
+                // Duplicated client hello
+                // so remove the last entry from history (we already have it there)
+                socketHistory->pop_back();
             }
 
         } else {
             // Create ServerEntry, link with last socket from history and add to server history
-            auto newServerEntry = proto2serverEntry(msg);
-            newServerEntry.sockets.push_back(&(socketHistory.back()));
-            serverHistory.push_back(newServerEntry);
-            socketHistory.back().serverEntry = &(serverHistory.back());
+            auto newServerEntry = ServerEntry::proto2serverEntry(msg);
+            newServerEntry.sockets.push_back(&(socketHistory->back()));
+            serverHistory->push_back(newServerEntry);
+            socketHistory->back().serverEntry = &(serverHistory->back());
 
             ServerConnection_t newServerConnection;
-            newServerConnection.serverEntry = &(serverHistory.back());
+            newServerConnection.serverEntry = &(serverHistory->back());
             newServerConnection.sockets.insert({socketKey, newSocketState});
 
             pool_it->second.insert({serverName, newServerConnection});
         }
     } else {
-        auto newServerEntry = proto2serverEntry(msg);
-        newServerEntry.sockets.push_back(&(socketHistory.back()));
-        serverHistory.push_back(newServerEntry);
-        socketHistory.back().serverEntry = &(serverHistory.back());
+        auto newServerEntry = ServerEntry::proto2serverEntry(msg);
+        newServerEntry.sockets.push_back(&(socketHistory->back()));
+        serverHistory->push_back(newServerEntry);
+        socketHistory->back().serverEntry = &(serverHistory->back());
 
         ServerConnection_t newServerConnection;
-        newServerConnection.serverEntry = &(serverHistory.back());
+        newServerConnection.serverEntry = &(serverHistory->back());
         newServerConnection.sockets.insert({socketKey, newSocketState});
 
         ServerNames_t newServerNames;
@@ -156,8 +82,18 @@ ActiveConnectionsPool::add(annotator::IFMessage &msg) {
     return ADDED;
 }
 
-ActiveConnectionsPool::ActionResult
-ActiveConnectionsPool::setFinOrRemove(annotator::IFMessage &msg) {
+TlsConnectionPool::ActionResult
+TlsConnectionPool::addHttpRequestToServer(annotator::HttpMessage &msg){
+    auto serverConnection = findServerConnection(msg);
+    if (serverConnection){
+        serverConnection->serverEntry->requests.push_back(msg);
+        return PAIRED;
+    }
+    return NOP;
+}
+
+TlsConnectionPool::ActionResult
+TlsConnectionPool::setFinOrRemove(annotator::IFMessage &msg) {
     ActionResult res = NOP;
     auto iters = findSocket(msg);
     auto pool_it = std::get<0>(iters);
@@ -195,8 +131,8 @@ ActiveConnectionsPool::setFinOrRemove(annotator::IFMessage &msg) {
     return res;
 }
 
-ActiveConnectionsPool::ActionResult
-ActiveConnectionsPool::remove(annotator::IFMessage &msg) {
+TlsConnectionPool::ActionResult
+TlsConnectionPool::remove(annotator::IFMessage &msg) {
     auto iters = findSocket(msg);
     auto pool_it = std::get<0>(iters);
     auto server_it = std::get<1>(iters);
@@ -213,8 +149,8 @@ ActiveConnectionsPool::remove(annotator::IFMessage &msg) {
     return remove(pool_it, server_it, socket_it);
 }
 
-ActiveConnectionsPool::ActionResult
-ActiveConnectionsPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator server_it, Sockets_t::iterator socket_it){
+TlsConnectionPool::ActionResult
+TlsConnectionPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator server_it, Sockets_t::iterator socket_it){
     if (pool_it != activeConnectionPool.end() &&
         server_it != pool_it->second.end() &&
         socket_it != server_it->second.sockets.end()) {
@@ -225,7 +161,7 @@ ActiveConnectionsPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator
         if (server_it->second.sockets.empty()){
             // DEBUG PRINT
             auto entry = server_it->second.serverEntry->getEntryAsJson();
-            std::cout << entry.dump(2) << std::endl;
+            server_it->second.serverEntry->print("/Users/jan.kala/WebTrafficAnnotator/FlowArchive.json");
 
             // remove server entry
             pool_it->second.erase(server_it);
@@ -240,7 +176,7 @@ ActiveConnectionsPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator
 }
 
 ServerKey_t
-ActiveConnectionsPool::proto2serverKey(annotator::IFMessage &msg) {
+TlsConnectionPool::proto2serverKey(annotator::IFMessage &msg) {
     ServerKey_t connId;
     connId.ipVersion = msg.ipversion();
     connId.dstPort = msg.dstport();
@@ -255,7 +191,7 @@ ActiveConnectionsPool::proto2serverKey(annotator::IFMessage &msg) {
 }
 
 ServerKey_t
-ActiveConnectionsPool::proto2serverKey(annotator::HttpMessage &msg) {
+TlsConnectionPool::proto2serverKey(annotator::HttpMessage &msg) {
     ServerKey_t connId;
     connId.ipVersion = msg.ipversion();
     connId.dstPort = msg.serverport();
@@ -270,7 +206,7 @@ ActiveConnectionsPool::proto2serverKey(annotator::HttpMessage &msg) {
 }
 
 ServerKey_t
-ActiveConnectionsPool::proto2serverKeySwapped(annotator::IFMessage &msg) {
+TlsConnectionPool::proto2serverKeySwapped(annotator::IFMessage &msg) {
     ServerKey_t connId;
     connId.ipVersion = msg.ipversion();
     connId.dstPort = msg.srcport();
@@ -285,7 +221,7 @@ ActiveConnectionsPool::proto2serverKeySwapped(annotator::IFMessage &msg) {
 }
 
 SocketKey_t
-ActiveConnectionsPool::proto2socketKey(annotator::IFMessage &msg) {
+TlsConnectionPool::proto2socketKey(annotator::IFMessage &msg) {
     SocketKey_t connState;
     connState.ipVersion = msg.ipversion();
     connState.srcPort = msg.srcport();
@@ -299,7 +235,7 @@ ActiveConnectionsPool::proto2socketKey(annotator::IFMessage &msg) {
 }
 
 SocketKey_t
-ActiveConnectionsPool::proto2socketKeySwapped(annotator::IFMessage &msg) {
+TlsConnectionPool::proto2socketKeySwapped(annotator::IFMessage &msg) {
     SocketKey_t connState;
     connState.ipVersion = msg.ipversion();
     connState.srcPort = msg.dstport();
@@ -312,34 +248,10 @@ ActiveConnectionsPool::proto2socketKeySwapped(annotator::IFMessage &msg) {
     return connState;
 }
 
-SocketEntry
-ActiveConnectionsPool::proto2socketEntry(annotator::IFMessage &msg){
-    SocketEntry newEntry;
-    newEntry.ipVersion = msg.ipversion();
-    if (msg.ipversion() == 4){
-        newEntry.src.ipv4.s_addr = msg.srcv4();
-        newEntry.dst.ipv4.s_addr = msg.dstv4();
-    } else if (msg.ipversion() == 6){
-        memcpy(&(newEntry.src.ipv6) ,msg.srcv6().data(), 16);
-        memcpy(&(newEntry.dst.ipv6) ,msg.dstv6().data(), 16);
-    }
-    newEntry.srcPort = msg.srcport();
-    newEntry.dstPort = msg.dstport();
-
-    return newEntry;
-}
-
-ServerEntry
-ActiveConnectionsPool::proto2serverEntry(annotator::IFMessage &msg){
-    ServerEntry newEntry;
-    newEntry.serverNameIndicator = msg.servername();
-    return newEntry;
-}
-
 std::tuple<Pool_t::iterator,
         ServerNames_t::iterator,
         Sockets_t::iterator>
-ActiveConnectionsPool::findSocket(ServerKey_t *connId, ServerNameKey_t *hostname, SocketKey_t *connState) {
+TlsConnectionPool::findSocket(ServerKey_t *connId, ServerNameKey_t *hostname, SocketKey_t *connState) {
     Pool_t::iterator pool_it;
     ServerNames_t::iterator server_it;
     Sockets_t ::iterator socket_it;
@@ -362,7 +274,7 @@ ActiveConnectionsPool::findSocket(ServerKey_t *connId, ServerNameKey_t *hostname
 std::tuple<Pool_t::iterator,
         ServerNames_t::iterator,
         Sockets_t::iterator>
-ActiveConnectionsPool::findSocket(annotator::IFMessage &msg){
+TlsConnectionPool::findSocket(annotator::IFMessage &msg){
     auto connId = proto2serverKey(msg);
     auto connState = proto2socketKey(msg);
     ServerNames_t ::iterator server_it;
@@ -399,7 +311,7 @@ ActiveConnectionsPool::findSocket(annotator::IFMessage &msg){
 }
 
 ServerConnection_t *
-ActiveConnectionsPool::findServerConnection(annotator::HttpMessage &msg){
+TlsConnectionPool::findServerConnection(annotator::HttpMessage &msg){
     auto connId = proto2serverKey(msg);
     auto hostname = msg.hostname();
     auto iters = findSocket(&connId, &hostname, nullptr);
@@ -414,18 +326,8 @@ ActiveConnectionsPool::findServerConnection(annotator::HttpMessage &msg){
 
 }
 
-ActiveConnectionsPool::ActionResult
-ActiveConnectionsPool::addHttpRequestToServer(annotator::HttpMessage &msg){
-    auto serverConnection = findServerConnection(msg);
-    if (serverConnection){
-        serverConnection->serverEntry->requests.push_back(msg);
-        return PAIRED;
-    }
-    return NOP;
-}
-
 void
-ActiveConnectionsPool::printPool() {
+TlsConnectionPool::printPool() {
 
     std::cout << PRINT_OFFSET << "-- Connections pool: " <<std::endl;
     for (auto poolItem: activeConnectionPool){
@@ -460,3 +362,5 @@ ActiveConnectionsPool::printPool() {
         }
     }
 }
+
+

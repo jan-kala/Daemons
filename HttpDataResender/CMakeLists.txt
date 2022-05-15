@@ -7,10 +7,11 @@ project(HttpDataReSender)
 # Dependencies
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/CPM.cmake)
 
-CPMAddPackage(
-        NAME nlohmann_json
-        GITHUB_REPOSITORY nlohmann/json
-        VERSION 3.9.1)
+## Downloading whole package takes too much space
+#CPMAddPackage(
+#        NAME nlohmann_json
+#        GITHUB_REPOSITORY nlohmann/json
+#        VERSION 3.9.1)
 
 find_package(Protobuf REQUIRED)
 message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")

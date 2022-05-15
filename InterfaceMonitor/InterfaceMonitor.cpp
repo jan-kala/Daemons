@@ -24,6 +24,7 @@
  * ipv6 tcp RST is set
  * TLS filter taken from the source
  * HTTP filter (looks for GET in message -> GET = 0x47455420)
+ * HTTP filter (looks for POST in message -> POST = 0x504F535420)
  */
 #define PACKET_CAPTURE_FILTER \
     "((tcp[tcpflags] & tcp-fin) != 0) " \
@@ -42,8 +43,13 @@
     "or " \
     "(proto 41 and ip[26] = 6 and ip[(ip[72]/16*4)+60]=22 and (ip[(ip[72]/16*4+5)+60]=1) and (ip[(ip[72]/16*4+9)+60]=3) and (ip[(ip[72]/16*4+1)+60]=3)) " \
     "or "  \
-    "(tcp and tcp[32:4] =  0x47455420) "
-
+    "(tcp and tcp[32:4] =  0x47455420) " \
+    "or "  \
+    "(tcp and ip6[72:4] =  0x47455420) "\
+    "or "  \
+    "(tcp and tcp[32:4] =  0x504F5354 and tcp[36] = 0x20 ) " \
+    "or " \
+    "(tcp and ip6[72:4] =  0x504F5354 and tcp[76] = 0x20 ) "
 int
 InterfaceMonitor::run() {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -53,13 +59,11 @@ InterfaceMonitor::run() {
         return IFMONITOR_RETURN_ERROR;
     }
 
-//    pcap_t* handle = pcap_open_live(devList[0].name, BUFSIZ, 0, 1000, errbuf);
-//    if (handle == nullptr){
-//        std::cerr << "Failed to open device with error: " << errbuf << std::endl;
-//        return IFMONITOR_RETURN_ERROR;
-//    }
-
     pcap_t* handle = pcap_create(devList[0].name, errbuf);
+    if (handle == nullptr){
+        std::cerr << "Failed to create handle for capture: " << errbuf << std::endl;
+        return IFMONITOR_RETURN_ERROR;
+    }
     pcap_set_immediate_mode(handle, 1);
     pcap_activate(handle);
 
@@ -120,9 +124,9 @@ InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *head
         // Send it to Joiner
         try {
             protoSend(message, &(self->sockFd));
-            LoggerCsv::log(message, "/Users/jan.kala/InterfaceMonitor.csv");
+            LoggerCsv::log(message, "/Users/jan.kala/WebTrafficAnnotator/InterfaceMonitor.csv");
         } catch (SendMessageFailed& e){
-            LoggerCsv::log(message, "/Users/jan.kala/InterfaceMonitor.csv", "FAILED_TO_SEND!");
+            LoggerCsv::log(message, "/Users/jan.kala/WebTrafficAnnotator/InterfaceMonitor.csv", "FAILED_TO_SEND!");
         }
 
     }
@@ -210,8 +214,10 @@ InterfaceMonitor::parseTcpHeader(const struct tcphdr *tcpPayload, annotator::IFM
 
 bool
 InterfaceMonitor::isHttp(const u_char *payload) {
-    // Look for GET method
-    return (payload[0] == 'G' && payload[1] == 'E' && payload[2] =='T');
+    // Look for GET or POST method
+    bool isGet = (payload[0] == 'G' && payload[1] == 'E' && payload[2] =='T');
+    bool isPost = (payload[0] == 'P' && payload[1] == 'O' && payload[2] =='S' && payload[3] == 'T');
+    return isGet || isPost;
 }
 
 void
@@ -242,7 +248,7 @@ InterfaceMonitor::parseHTTPPayload(std::string &payload, annotator::IFMessage &m
         }
     }
 
-    message.set_servername(host + resourcePath);
+    message.set_servername(host);
 }
 
 bool

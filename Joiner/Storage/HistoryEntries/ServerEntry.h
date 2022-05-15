@@ -19,7 +19,8 @@ public:
     std::vector<annotator::HttpMessage> requests;
 
     json getEntryAsJson() override;
-    void print() override;
+//    void print(const char *outputFile) override;
+    static ServerEntry proto2serverEntry(annotator::IFMessage &msg);
 };
 
 

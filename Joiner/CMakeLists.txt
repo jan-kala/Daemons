@@ -1,14 +1,16 @@
 cmake_minimum_required(VERSION 3.0.0)
 
-project(HttpIpJoiner)
+project(Joiner)
 
 # Dependencies
 include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/CPM.cmake)
 
-CPMAddPackage(
-        NAME nlohmann_json
-        GITHUB_REPOSITORY nlohmann/json
-        VERSION 3.9.1)
+## Downloading whole package takes too much space
+#CPMAddPackage(
+#        NAME nlohmann_json
+#        GITHUB_REPOSITORY nlohmann/json
+#        VERSION 3.9.1)
+
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Protobuf REQUIRED)
 message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")
@@ -18,7 +20,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 
 # =========================================
 
-set(HttpIpJoiner_SRCS
+set(Joiner_SRCS
         main.cpp
         MessageListeners/IFMonitorListener.cpp
         MessageListeners/IFMonitorListener.h
@@ -27,21 +29,24 @@ set(HttpIpJoiner_SRCS
         ../Utils/LoggerCsv.cpp
         ../Utils/ProtobufReceiverBase.cpp
         Storage/Storage.h
-        Storage/ActiveConnectionsPool.cpp
-        Storage/ActiveConnectionsPool.h
-        Storage/ServerEntry.cpp
-        Storage/ServerEntry.h
-        Storage/SocketEntry.cpp
-        Storage/SocketEntry.h
+        Storage/ConnectionPools/TlsConnectionPool.cpp
+        Storage/ConnectionPools/TlsConnectionPool.h
+        Storage/HistoryEntries/ServerEntry.cpp
+        Storage/HistoryEntries/ServerEntry.h
+        Storage/HistoryEntries/SocketEntry.cpp
+        Storage/HistoryEntries/SocketEntry.h
         Dispatcher/Dispatcher.cpp
-        Dispatcher/Dispatcher.h Storage/ListEntryBase.h)
+        Dispatcher/Dispatcher.h
+        Storage/HistoryEntries/ListEntryBase.h
+        Storage/ConnectionPools/HttpConnectionPool.cpp
+        Storage/ConnectionPools/HttpConnectionPool.h
+        Storage/Storage.cpp)
 
 # =========================================
 
+add_executable(Joiner ${Joiner_SRCS})
 
-add_executable(HttpIpJoiner ${HttpIpJoiner_SRCS})
-
-target_link_libraries(HttpIpJoiner
+target_link_libraries(Joiner
     protobuf::libprotobuf
     -L${CMAKE_CURRENT_SOURCE_DIR}/../ProtobufMessages/build
     libProtobufMessagesLibrary.a

@@ -7,6 +7,7 @@
 #include <fstream>
 #include <ostream>
 #include <sstream>
+#include <iomanip>
 
 void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath,  const char *note) {
     std::ofstream of;
@@ -38,19 +39,19 @@ void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath,  cons
     std::string msgType;
     switch (message.type()) {
         case annotator::IFMessage_MessageType_TLS_NEW_CONNECTION:
-            msgType = "TLS_NEW";
+            msgType = "ClientHello";
             break;
         case annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_FIN:
-            msgType = "tcp_fin";
+            msgType = "TCP FIN    ";
             break;
         case annotator::IFMessage_MessageType_TLS_CLOSE_CONNECTION_RST:
-            msgType = "tcp_rst";
+            msgType = "TCP RST    ";
             break;
         case annotator::IFMessage_MessageType_HTTP:
-            msgType = "HTTPNEW";
+            msgType = "HTTP packet";
             break;
         case annotator::IFMessage_MessageType_UNWANTED_MESSAGE:
-            msgType = "ignored";
+            msgType = "Ignored    ";
             break;
     }
     std::stringstream srcport, dstport;
@@ -65,6 +66,7 @@ void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath,  cons
         << dstIP.str() << ", " << dstport.str() << ", "
         << (!message.servername().empty() ? "\"" + message.servername() + "\"" : "\"\"")
         << std::endl;
+    of.close();
 }
 
 void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath, const char *note) {
@@ -89,12 +91,12 @@ void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath, con
     srcport << std::setw(5) << message.serverport();
 
     std::string msgType;
-    switch (message.type()){
-        case annotator::HttpMessage_MessageType_NEW_REQUEST:
-            msgType = "NEW_REQUEST";
+    switch (message.protocol()){
+        case annotator::HttpMessage_RequestProtocol_HTTP:
+            msgType = "data HTTP  ";
             break;
-        case annotator::HttpMessage_MessageType_PAIRING:
-            msgType = "PAIRING";
+        case annotator::HttpMessage_RequestProtocol_TLS:
+            msgType = "data HTTPS ";
             break;
         default:
             msgType = "";
@@ -110,6 +112,7 @@ void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath, con
         << "\"" << message.hostname() << "\", "
         << "\""  << message.data() << "\""
         << std::endl;
+    of.close();
 }
 
 std::ostream LoggerCsv::checkFileOutput(const char *filePath, std::ofstream &of) {

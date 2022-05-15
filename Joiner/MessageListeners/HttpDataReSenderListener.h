@@ -13,7 +13,7 @@
 
 class HttpDataReSenderListener:ProtobufReceiverBase {
 public:
-    explicit HttpDataReSenderListener(std::string &domainSocketPath, ActiveConnectionsPool *pool);
+    explicit HttpDataReSenderListener(std::string &domainSocketPath, Storage *storage);
     ~HttpDataReSenderListener();
     void run();
 private:
@@ -23,7 +23,7 @@ private:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
-    ActiveConnectionsPool *pool;
+    Storage *storage;
 };
 
 

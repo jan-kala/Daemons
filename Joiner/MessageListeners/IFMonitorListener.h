@@ -14,7 +14,7 @@
 
 class IFMonitorListener: ProtobufReceiverBase {
 public:
-    explicit IFMonitorListener(std::string &domainSocketPath, ActiveConnectionsPool *pool);
+    explicit IFMonitorListener(std::string &domainSocketPath, Storage *storage);
     ~IFMonitorListener();
     void run();
 protected:
@@ -24,7 +24,7 @@ protected:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
-    ActiveConnectionsPool* pool;
+    Storage* storage;
 };
 
 

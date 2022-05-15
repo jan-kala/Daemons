@@ -10,19 +10,18 @@
 #include <iostream>
 
 int main() {
-    ActiveConnectionsPool pool;
-    pool.IFMessageQ_mutex.unlock();
+    Storage storage;
 
     std::string ifMonitorListenerDomainSocketPath = "/tmp/IFMonitor";
-    IFMonitorListener ifMonitorListener(ifMonitorListenerDomainSocketPath, &pool);
+    IFMonitorListener ifMonitorListener(ifMonitorListenerDomainSocketPath, &storage);
     ifMonitorListener.run();
 
     std::string httpDataReSenderDomainSocketPath = "/tmp/HttpDataReSender";
-    HttpDataReSenderListener httpDataReSenderListener(httpDataReSenderDomainSocketPath, &pool);
+    HttpDataReSenderListener httpDataReSenderListener(httpDataReSenderDomainSocketPath, &storage);
     httpDataReSenderListener.run();
 
     int dispatcherPortNumber = 50555;
-    Dispatcher dispatcher(dispatcherPortNumber, &pool);
+    Dispatcher dispatcher(dispatcherPortNumber, &storage);
     dispatcher.run();
 
     while (true) {

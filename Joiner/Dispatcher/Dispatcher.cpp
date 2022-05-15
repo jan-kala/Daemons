@@ -4,8 +4,8 @@
 
 #include "Dispatcher.h"
 
-Dispatcher::Dispatcher(int port, ActiveConnectionsPool *pool)
-    : pool(pool)
+Dispatcher::Dispatcher(int port, Storage *storage)
+    : storage(storage)
     , port(port)
 {}
 
@@ -76,8 +76,6 @@ void Dispatcher::dispatchRequest() {
         return;
     }
     json jsonMessage = json::parse(strMessage);
-    std::cout<< jsonMessage.dump(2) << std::endl;
-
     auto response = processRequest(jsonMessage);
     sendResponse(acceptSocket, response);
 
@@ -102,7 +100,7 @@ std::string Dispatcher::readRequest(int acceptSocket) {
     char messageBuffer[messageSize];
     dataLen = recv(acceptSocket, messageBuffer, messageSize, 0);
 
-    return std::string(messageBuffer);
+    return {messageBuffer};
 }
 
 json Dispatcher::processRequest(json &request) {
@@ -117,10 +115,10 @@ json Dispatcher::processRequest(json &request) {
     }
 
     // Try to find the entry
-    auto it = std::find(pool->socketHistory.begin(),
-                        pool->socketHistory.end(),
+    auto it = std::find(storage->socketHistory.begin(),
+                        storage->socketHistory.end(),
                         sockToFind);
-    if (it!= pool->socketHistory.end()){
+    if (it!= storage->socketHistory.end()){
         return it->serverEntry->getEntryAsJson();
     } else {
         return R"({"error":"not found"})"_json;

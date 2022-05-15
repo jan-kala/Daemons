@@ -6,9 +6,9 @@
 #include <iostream>
 
 
-IFMonitorListener::IFMonitorListener(std::string &domainSocketPath, ActiveConnectionsPool *pool)
+IFMonitorListener::IFMonitorListener(std::string &domainSocketPath, Storage *storage)
     : ProtobufReceiverBase(domainSocketPath)
-    , pool(pool)
+    , storage(storage)
 {}
 
 IFMonitorListener::~IFMonitorListener() {
@@ -41,9 +41,9 @@ void IFMonitorListener::worker() {
             continue;
         }
 
-        pool->IFMessageQ_mutex.lock();
-        pool->IFMessageQ.push(message);
-        pool->IFMessageQ_mutex.unlock();
+        storage->IFMessageQ_mutex.lock();
+        storage->IFMessageQ.push(message);
+        storage->IFMessageQ_mutex.unlock();
 
     }
 }

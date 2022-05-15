@@ -8,9 +8,9 @@
 #include <iostream>
 #include <sys/socket.h>
 
-HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath, ActiveConnectionsPool *pool)
+HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath, Storage *storage)
     : ProtobufReceiverBase(domainSocketPath)
-    , pool(pool)
+    , storage(storage)
 {}
 
 HttpDataReSenderListener::~HttpDataReSenderListener() {
@@ -45,26 +45,26 @@ void HttpDataReSenderListener::worker() {
         // Start processing
         while (true){
             // Check the IFMessage queue for incoming messages.
-            pool->IFMessageQ_mutex.lock();
-            if (!pool->IFMessageQ.empty()){
+            storage->IFMessageQ_mutex.lock();
+            if (!storage->IFMessageQ.empty()){
                 // There is some IFMessage, check timestamp
-                auto messageFromQ = pool->IFMessageQ.front();
+                auto messageFromQ = storage->IFMessageQ.front();
                 if (messageFromQ.timestamp_packetcaptured() <= message.timestamp_eventtriggered()) {
                     // IFMessage should be processed first
-                    pool->processMessage(messageFromQ);
-                    pool->IFMessageQ.pop();
+                    storage->processMessage(messageFromQ);
+                    storage->IFMessageQ.pop();
 
-                    pool->IFMessageQ_mutex.unlock();
+                    storage->IFMessageQ_mutex.unlock();
                     continue;
                 }
             }
             // IFMessage queue is empty or HTTPMessage should be processed next
-            pool->IFMessageQ_mutex.unlock();
+            storage->IFMessageQ_mutex.unlock();
             break;
         }
 
         // Process HTTPMessage
-        pool->processMessage(message);
+        storage->processMessage(message);
 
     }
 }

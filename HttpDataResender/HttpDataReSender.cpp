@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define LOG_FILE_PATH "/Users/jan.kala/HttpReSender.csv"
+#define LOG_FILE_PATH "/Users/jan.kala/WebTrafficAnnotator/HttpReSender.csv"
 
 int HttpDataReSender::run() {
     GOOGLE_PROTOBUF_VERIFY_VERSION;

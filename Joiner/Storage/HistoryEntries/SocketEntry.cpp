@@ -35,7 +35,7 @@ SocketEntry::getEntryAsJson(){
     };
 }
 
-void SocketEntry::print(){
+void SocketEntry::print(const char *outputFile) {
     std::string srcIP, dstIP;
     if (ipVersion == 4){
         char ipString[INET_ADDRSTRLEN];
@@ -60,4 +60,21 @@ void SocketEntry::print(){
             << "[" << srcIP << " " << srcPort << "] "
             << "[" << dstIP << " " << dstPort << "]"
             << std::endl;
+}
+
+SocketEntry
+SocketEntry::proto2socketEntry(annotator::IFMessage &msg){
+    SocketEntry newEntry;
+    newEntry.ipVersion = msg.ipversion();
+    if (msg.ipversion() == 4){
+        newEntry.src.ipv4.s_addr = msg.srcv4();
+        newEntry.dst.ipv4.s_addr = msg.dstv4();
+    } else if (msg.ipversion() == 6){
+        memcpy(&(newEntry.src.ipv6) ,msg.srcv6().data(), 16);
+        memcpy(&(newEntry.dst.ipv6) ,msg.dstv6().data(), 16);
+    }
+    newEntry.srcPort = msg.srcport();
+    newEntry.dstPort = msg.dstport();
+
+    return newEntry;
 }

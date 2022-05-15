@@ -10,7 +10,7 @@
 
 class Dispatcher {
 public :
-    explicit Dispatcher(int port, ActiveConnectionsPool *pool);
+    explicit Dispatcher(int port, Storage *storage);
     ~Dispatcher();
 
     void run();
@@ -47,7 +47,7 @@ protected:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
-    ActiveConnectionsPool* pool;
+    Storage* storage;
     int port;
     int sockFd;
 };

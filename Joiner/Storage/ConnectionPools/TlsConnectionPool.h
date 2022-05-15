@@ -8,10 +8,10 @@
 #include <map>
 #include <queue>
 #include <arpa/inet.h>
-#include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
-#include "../ProtobufMessages/build/HTTPMessage.pb.h"
-#include "ServerEntry.h"
-#include "SocketEntry.h"
+#include "../../../ProtobufMessages/build/IFMonitorMessage.pb.h"
+#include "../../../ProtobufMessages/build/HTTPMessage.pb.h"
+#include "../HistoryEntries/ServerEntry.h"
+#include "../HistoryEntries/SocketEntry.h"
 
 #define PRINT_OFFSET ""
 
@@ -133,8 +133,11 @@ typedef struct ServerKey {
 
 typedef std::map<ServerKey_t, ServerNames_t> Pool_t;
 
-class ActiveConnectionsPool {
+class TlsConnectionPool {
 public:
+    TlsConnectionPool(std::list<ServerEntry> *serverHistory,
+                      std::list<SocketEntry> *socketHistory);
+
     enum ActionResult {
         ADDED,
         REMOVED,
@@ -143,9 +146,6 @@ public:
         NOP,
         PAIRED
     };
-
-    void processMessage(annotator::IFMessage &message);
-    void processMessage(annotator::HttpMessage &msg);
 
     // Actions for Interface Monitor messages
     ActionResult add(annotator::IFMessage &msg);
@@ -181,21 +181,13 @@ public:
     void printPool();
 
     Pool_t activeConnectionPool = {};
+
+    std::list<ServerEntry> *serverHistory;
+    std::list<SocketEntry> *socketHistory;
+
     // stats
     int succ = 0;
     int failed = 0;
-
-    // queue for storing messages
-    std::queue<annotator::IFMessage> IFMessageQ;
-    std::mutex IFMessageQ_mutex;
-
-    std::list<ServerEntry> serverHistory;
-    std::list<SocketEntry> socketHistory;
-
-    static SocketEntry proto2socketEntry(annotator::IFMessage &msg);
-    static ServerEntry proto2serverEntry(annotator::IFMessage &msg);
-
-
 };
 
 

@@ -15,7 +15,6 @@ public:
     static void log(annotator::IFMessage &message, const char *outputPath = nullptr, const char *note = nullptr);
     static void log(annotator::HttpMessage &message, const char *outputPath = nullptr, const char *note = nullptr);
 
-protected:
     static std::ostream checkFileOutput(const char *filePath, std::ofstream &of);
 };
 

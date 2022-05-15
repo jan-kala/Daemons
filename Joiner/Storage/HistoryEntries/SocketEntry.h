@@ -43,7 +43,8 @@ public:
     ListEntryBase* serverEntry;
 
     bool operator==(const SocketFindRequest &sock) const {
-        bool inTsRange = ts_start <= sock.ts && sock.ts <= ts_end;
+        bool isActive = ts_end == 0;
+        bool inTsRange = ts_start <= sock.ts && (sock.ts <= ts_end || isActive);
 
         if (sock.ipVersion != ipVersion){
             return false;
@@ -68,7 +69,8 @@ public:
     }
 
     json getEntryAsJson() override;
-    void print() override;
+    void print(const char *outputFile) override;
+    static SocketEntry proto2socketEntry(annotator::IFMessage &msg);
 };
 
 
