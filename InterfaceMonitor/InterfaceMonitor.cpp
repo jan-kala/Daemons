@@ -65,7 +65,10 @@ InterfaceMonitor::run() {
         return IFMONITOR_RETURN_ERROR;
     }
     pcap_set_immediate_mode(handle, 1);
-    pcap_activate(handle);
+    if (pcap_activate(handle) != 0){
+        std::cerr<< "Failed to activate capture handle!" << std::endl;
+        return IFMONITOR_RETURN_ERROR;
+    }
 
 
     struct bpf_program filter = {};
