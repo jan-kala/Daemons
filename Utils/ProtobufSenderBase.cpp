@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <sys/un.h>
 #include <sys/socket.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 ProtobufSenderBase::ProtobufSenderBase(std::string& domainSocketPath) {
     this->domainSocketPath = domainSocketPath;
