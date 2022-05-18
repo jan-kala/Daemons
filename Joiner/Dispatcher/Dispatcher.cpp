@@ -98,9 +98,11 @@ std::string Dispatcher::readRequest(int acceptSocket) {
 
     auto messageSize = (uint32_t)*lenBuffer;
     char messageBuffer[messageSize];
+    memset(messageBuffer, '\0', messageSize);
+
     dataLen = recv(acceptSocket, messageBuffer, messageSize, 0);
 
-    return {messageBuffer};
+    return std::string(messageBuffer, messageSize);
 }
 
 json Dispatcher::processRequest(json &request) {
