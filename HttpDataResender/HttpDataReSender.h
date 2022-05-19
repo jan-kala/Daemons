@@ -8,18 +8,22 @@
 #include "../Utils/ProtobufSenderBase.h"
 #include "../ProtobufMessages/build/HTTPMessage.pb.h"
 #include <nlohmann/json.hpp>
+#include "../../Utils/Config.h"
+#include "../../Utils/LoggerCsv.h"
 
 using namespace nlohmann;
 
 class HttpDataReSender: ProtobufSenderBase {
 public:
 
-    explicit HttpDataReSender(std::string& domainSocketPath)
-        : ProtobufSenderBase(domainSocketPath){};
+    explicit HttpDataReSender(Config& config);
 
     int run();
 
 private:
+    LoggerCsv logger;
+    Config& config;
+
     json getNativeMessage();
     annotator::HttpMessage json2protobuf(json& jsonMessage);
 };

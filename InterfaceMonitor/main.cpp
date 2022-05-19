@@ -4,14 +4,12 @@
 
 #include "InterfaceMonitor.h"
 #include <iostream>
+#include "../../Utils/Config.h"
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
-        std::cout << "Only one argument specifying path to Protobuf communication file needs o be specified" << std::endl;
-        return 1;
-    }
-    std::string protoFile = argv[1];
-    auto monitor = InterfaceMonitor(protoFile);
+    Config config(argv[0], "InterfaceMonitor");
+
+    auto monitor = InterfaceMonitor(config);
     monitor.run();
 }

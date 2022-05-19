@@ -6,8 +6,10 @@
 
 int main(int argc, char** argv)
 {
-    // TODO startup sequence so the path is not hardcoded
-    std::string domainSocketPath = "/tmp/HttpDataReSender";
-    HttpDataReSender daemon(domainSocketPath);
+    // Load configuration
+    Config config(argv[0], "HttpDataReSender");
+
+    // Run the daemon
+    HttpDataReSender daemon(config);
     return daemon.run();
 }

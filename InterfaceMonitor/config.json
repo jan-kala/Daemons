@@ -1,0 +1,6 @@
+{
+  "logFilePath" : "default",
+  "InterfaceMonitor":{
+    "domainSocketPath" : "/tmp/IFMonitor"
+  }
+}

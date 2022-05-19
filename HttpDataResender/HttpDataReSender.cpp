@@ -7,7 +7,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
-#define LOG_FILE_PATH "/Users/jan.kala/WebTrafficAnnotator/HttpReSender.csv"
+HttpDataReSender::HttpDataReSender(Config &config) : logger(config), ProtobufSenderBase(config), config(config)
+{
+}
 
 int HttpDataReSender::run() {
     GOOGLE_PROTOBUF_VERIFY_VERSION;
@@ -22,9 +24,9 @@ int HttpDataReSender::run() {
         // Send message to Joiner
         try {
             protoSend(protoMessage, &sockFd);
-            LoggerCsv::log(protoMessage, LOG_FILE_PATH);
+            logger.log(protoMessage);
         } catch (SendMessageFailed& e){
-            LoggerCsv::log(protoMessage, LOG_FILE_PATH, "FAILED_TO_SEND");
+            logger.log(protoMessage, "FAILED_TO_SEND");
         }
     }
 }
@@ -55,22 +57,7 @@ HttpDataReSender::json2protobuf(json &jsonMessage) {
     protoMessage.set_data(jsonMessage["details"].dump());
 
     // Trigger-specific parts
-    if (jsonMessage["trigger"].get<std::string>() == "onSendHeaders") {
-        // Before anything is sent, this event is triggered
-
-        protoMessage.set_type(annotator::HttpMessage_MessageType_NEW_REQUEST);
-        protoMessage.set_hostname(jsonMessage["hostname"].get<std::string>());
-
-        std::string proto = jsonMessage["proto"].get<std::string>();
-        if (proto == "http:"){
-            protoMessage.set_protocol(annotator::HttpMessage_RequestProtocol_HTTP);
-        } else if (proto == "https:"){
-            protoMessage.set_protocol(annotator::HttpMessage_RequestProtocol_TLS);
-        } else {
-            throw std::runtime_error("Wrong protocol");
-        }
-
-    } else if (jsonMessage["trigger"].get<std::string>() == "onResponseStarted"){
+    if (jsonMessage["trigger"].get<std::string>() == "onResponseStarted"){
         // When response starts, connection is open and active, thus ready for pairing
 
         protoMessage.set_type(annotator::HttpMessage_MessageType_PAIRING);
@@ -104,8 +91,10 @@ HttpDataReSender::json2protobuf(json &jsonMessage) {
         }
 
     } else {
-        protoMessage.set_type(annotator::HttpMessage_MessageType_DATA_ASSIGNMENT);
+        throw std::runtime_error("Unknown message was received. Aborting ReSender.");
     }
 
     return protoMessage;
 }
+
+

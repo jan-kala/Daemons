@@ -8,6 +8,7 @@
 #include "../Utils/LoggerCsv.h"
 #include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
 #include "../Utils/ProtobufSenderBase.h"
+#include "../../Utils/Config.h"
 #include <string>
 #include <pcap.h>
 #include <netinet/ip.h>
@@ -16,8 +17,10 @@
 
 class InterfaceMonitor: ProtobufSenderBase{
 public:
-    explicit InterfaceMonitor(std::string& domainSocketPath)
-        : ProtobufSenderBase(domainSocketPath){};
+    explicit InterfaceMonitor(Config& config)
+        : ProtobufSenderBase(config)
+        , logger(config)
+        , config(config) {};
 
     int run();
 
@@ -47,6 +50,9 @@ public:
 
     static char*
     getTlsSni(u_char *bytes, int* len);
+
+    Config& config;
+    LoggerCsv logger;
 };
 
 

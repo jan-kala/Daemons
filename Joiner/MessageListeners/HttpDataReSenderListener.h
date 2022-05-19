@@ -7,6 +7,7 @@
 
 #include "../Utils/ProtobufReceiverBase.h"
 #include "Storage/Storage.h"
+#include "../../Utils/Config.h"
 #include <condition_variable>
 #include <thread>
 #include <mutex>
@@ -14,12 +15,13 @@
 
 class HttpDataReSenderListener:ProtobufReceiverBase {
 public:
-    explicit HttpDataReSenderListener(std::string &domainSocketPath, Storage *storage);
+    explicit HttpDataReSenderListener(Config &config, Storage *storage);
     ~HttpDataReSenderListener();
     void run();
 private:
     void worker();
 
+    Config&                 config;
     std::thread             worker_thread;
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;

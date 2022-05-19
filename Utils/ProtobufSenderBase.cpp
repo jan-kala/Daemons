@@ -9,8 +9,8 @@
 #include <sys/socket.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
-ProtobufSenderBase::ProtobufSenderBase(std::string& domainSocketPath) {
-    this->domainSocketPath = domainSocketPath;
+ProtobufSenderBase::ProtobufSenderBase(Config& config): config(config) {
+    this->domainSocketPath = config[CONFIG_KEY_DOMAIN_SOCKET_PATH].get<std::string>();
 }
 
 ProtobufSenderBase::~ProtobufSenderBase() {
@@ -24,7 +24,7 @@ void ProtobufSenderBase::connectSocket() {
     struct sockaddr_un remote;
 
     if ( (sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1 ){
-        std::cerr << "IFMonitor: Failed to create socket" << std::endl;
+        std::cerr  << config.moduleName << ": Failed to create socket" << std::endl;
         return;
     }
     remote.sun_family = AF_UNIX;
@@ -32,7 +32,7 @@ void ProtobufSenderBase::connectSocket() {
     int data_len = sizeof(remote);
 
     if (connect(sock, (struct sockaddr*)&remote, data_len) == -1){
-        std::cerr << "IFMonitor: Failed to connect to the socket." << std::endl;
+        std::cerr << config.moduleName <<": Failed to connect to the socket." << std::endl;
         return;
     }
 

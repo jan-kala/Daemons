@@ -28,6 +28,7 @@ set(Joiner_SRCS
         MessageListeners/HttpDataReSenderListener.h
         ../Utils/LoggerCsv.cpp
         ../Utils/ProtobufReceiverBase.cpp
+        ../Utils/Config.cpp
         Storage/Storage.h
         Storage/ConnectionPools/TlsConnectionPool.cpp
         Storage/ConnectionPools/TlsConnectionPool.h
@@ -48,6 +49,7 @@ add_executable(Joiner ${Joiner_SRCS})
 
 target_link_libraries(Joiner
     protobuf::libprotobuf
+    nlohmann_json::nlohmann_json
     -L${CMAKE_CURRENT_SOURCE_DIR}/../ProtobufMessages/build
     libProtobufMessagesLibrary.a
 )

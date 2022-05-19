@@ -4,9 +4,9 @@
 
 #include "Dispatcher.h"
 
-Dispatcher::Dispatcher(int port, Storage *storage)
+Dispatcher::Dispatcher(Config& config, Storage *storage)
     : storage(storage)
-    , port(port)
+    , config(config)
 {}
 
 Dispatcher::~Dispatcher() {
@@ -43,9 +43,12 @@ void Dispatcher::createSocket() {
         throw std::runtime_error("Failed to set socket options!");
     }
 
+    auto port = config[CONFIG_JOINER_DISPATCHER_PORT].get<uint32_t>();
+    auto ip = config[CONFIG_JOINER_DISPATCHER_IP].get<std::string>();
+
     struct sockaddr_in addr = {};
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    inet_pton(AF_INET, ip.c_str(), &(addr.sin_addr.s_addr));
     addr.sin_port = htons(port);
 
     if (bind(newSockFd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
@@ -102,7 +105,7 @@ std::string Dispatcher::readRequest(int acceptSocket) {
 
     dataLen = recv(acceptSocket, messageBuffer, messageSize, 0);
 
-    return std::string(messageBuffer, messageSize);
+    return {messageBuffer, messageSize};
 }
 
 json Dispatcher::processRequest(json &request) {

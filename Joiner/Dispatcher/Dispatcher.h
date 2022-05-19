@@ -6,12 +6,13 @@
 #define HTTPIPJOINER_DISPATCHER_H
 
 #include "../Storage/Storage.h"
+#include "../../Utils/Config.h"
 #include <condition_variable>
 #include <thread>
 
 class Dispatcher {
 public :
-    explicit Dispatcher(int port, Storage *storage);
+    explicit Dispatcher(Config& config, Storage *storage);
     ~Dispatcher();
 
     void run();
@@ -48,8 +49,9 @@ protected:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
+    Config& config;
     Storage* storage;
-    int port;
+
     int sockFd;
 };
 

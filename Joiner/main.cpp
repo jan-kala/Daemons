@@ -6,22 +6,22 @@
 #include "MessageListeners/HttpDataReSenderListener.h"
 #include "Dispatcher/Dispatcher.h"
 #include "Storage/Storage.h"
+#include "../Utils/Config.h"
 #include <unistd.h>
-#include <iostream>
 
-int main() {
-    Storage storage;
+int main(int argc, char** argv) {
+    // Load config
+    Config config(argv[0], "Joiner");
 
-    std::string ifMonitorListenerDomainSocketPath = "/tmp/IFMonitor";
-    IFMonitorListener ifMonitorListener(ifMonitorListenerDomainSocketPath, &storage);
+    Storage storage(config);
+
+    IFMonitorListener ifMonitorListener(config, &storage);
     ifMonitorListener.run();
 
-    std::string httpDataReSenderDomainSocketPath = "/tmp/HttpDataReSender";
-    HttpDataReSenderListener httpDataReSenderListener(httpDataReSenderDomainSocketPath, &storage);
+    HttpDataReSenderListener httpDataReSenderListener(config, &storage);
     httpDataReSenderListener.run();
 
-    int dispatcherPortNumber = 50555;
-    Dispatcher dispatcher(dispatcherPortNumber, &storage);
+    Dispatcher dispatcher(config, &storage);
     dispatcher.run();
 
     while (true) {

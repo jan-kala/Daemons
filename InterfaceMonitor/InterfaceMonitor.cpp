@@ -127,9 +127,9 @@ InterfaceMonitor::onPacketArrives(u_char *cookie, const struct pcap_pkthdr *head
         // Send it to Joiner
         try {
             protoSend(message, &(self->sockFd));
-            LoggerCsv::log(message, "/Users/jan.kala/WebTrafficAnnotator/InterfaceMonitor.csv");
+            self->logger.log(message);
         } catch (SendMessageFailed& e){
-            LoggerCsv::log(message, "/Users/jan.kala/WebTrafficAnnotator/InterfaceMonitor.csv", "FAILED_TO_SEND!");
+            self->logger.log(message, "FAILED_TO_SEND!");
         }
 
     }
@@ -262,7 +262,6 @@ InterfaceMonitor::parseTlsPayload(u_char *payload, annotator::IFMessage &message
     if (sniStart){
         serverName = std::string(sniStart, sniLen);
     } else {
-        serverName = "[no server name]"; // logging purpose
         message.set_type(annotator::IFMessage_MessageType_UNWANTED_MESSAGE);
     }
     message.set_servername(serverName);

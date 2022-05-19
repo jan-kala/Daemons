@@ -6,10 +6,35 @@
 #include <arpa/inet.h>
 #include <fstream>
 #include <ostream>
-#include <sstream>
 #include <iomanip>
 
-void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath,  const char *note) {
+LoggerCsv::LoggerCsv(Config &config) {
+    auto configLogFilePath = config.common()[CONFIG_KEY_LOG_FILE_PATH];
+
+    if (configLogFilePath.empty()){
+        // std::cout output
+        useFile = false;
+    } else {
+        // file output
+        useFile = true;
+        auto configLogFilePathLoaded = configLogFilePath.get<std::string>();
+
+        if (configLogFilePathLoaded == "default"){
+            logFilePath = (config.projectRootPath / LOG_FOLDER_NAME / config.moduleName)
+                            .replace_extension("csv");
+        } else {
+            logFilePath = std::filesystem::path(configLogFilePathLoaded);
+        }
+        std::cout << "LOGFILEPATH: " << logFilePath << std::endl;
+    }
+}
+
+LoggerCsv::LoggerCsv(const std::string& filePath) {
+    logFilePath = {filePath};
+    useFile = true;
+}
+
+void LoggerCsv::fileLog(annotator::IFMessage &message, const char *outputPath,  const char *note) {
     std::ofstream of;
     std::ostream out = checkFileOutput(outputPath, of);
 
@@ -69,7 +94,7 @@ void LoggerCsv::log(annotator::IFMessage &message, const char *outputPath,  cons
     of.close();
 }
 
-void LoggerCsv::log(annotator::HttpMessage &message, const char *outputPath, const char *note) {
+void LoggerCsv::fileLog(annotator::HttpMessage &message, const char *outputPath, const char *note) {
     std::ofstream of;
     std::ostream out = checkFileOutput(outputPath, of);
 
@@ -126,4 +151,18 @@ std::ostream LoggerCsv::checkFileOutput(const char *filePath, std::ofstream &of)
     }
     return std::ostream(buf);
 }
+
+void LoggerCsv::log(annotator::IFMessage &message, const char *note) {
+    const char* filePath = useFile ? logFilePath.c_str() : nullptr;
+    fileLog(message, filePath, note);
+}
+
+void LoggerCsv::log(annotator::HttpMessage &message, const char *note) {
+    const char* filePath = useFile ? logFilePath.c_str() : nullptr;
+    fileLog(message, filePath, note);
+}
+
+
+
+
 

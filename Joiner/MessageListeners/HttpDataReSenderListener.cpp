@@ -8,9 +8,10 @@
 #include <iostream>
 #include <sys/socket.h>
 
-HttpDataReSenderListener::HttpDataReSenderListener(std::string &domainSocketPath, Storage *storage)
-    : ProtobufReceiverBase(domainSocketPath)
+HttpDataReSenderListener::HttpDataReSenderListener(Config &config, Storage *storage)
+    : ProtobufReceiverBase(config, "HttpDataReSender")
     , storage(storage)
+    , config(config)
 {}
 
 HttpDataReSenderListener::~HttpDataReSenderListener() {

@@ -8,10 +8,11 @@
 #include <string>
 #include "../ProtobufMessages/build/HTTPMessage.pb.h"
 #include "../ProtobufMessages/build/IFMonitorMessage.pb.h"
+#include "Config.h"
 
 class ProtobufReceiverBase {
 public:
-    explicit ProtobufReceiverBase(std::string& domainSocketPath);
+    explicit ProtobufReceiverBase(Config& config, const std::string& moduleName);
     ~ProtobufReceiverBase();
 
 protected:
@@ -21,6 +22,7 @@ protected:
         }
     };
 
+    Config& config;
     std::string domainSocketPath;
     int sockFd;
     int acceptSockFd;

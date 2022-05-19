@@ -4,9 +4,15 @@
 
 #include "Storage.h"
 
-Storage::Storage()
+Storage::Storage(Config& config)
     : tlsPool(TlsConnectionPool(&serverHistory, &socketHistory))
+    , config(config)
+    , actionLog(config)
 {
+    auto errorLogname = std::filesystem::path(std::string(config.moduleName) + "Error").replace_extension("csv");
+    auto errorLogPath = actionLog.logFilePath.replace_filename(errorLogname);
+
+    errorLog = LoggerCsv(errorLogPath.string());
     IFMessageQ_mutex.unlock();
 }
 
@@ -51,7 +57,7 @@ void Storage::processMessage(annotator::IFMessage &msg) {
             throw std::runtime_error("Unexpected result of an action!");
             break;
     }
-    LoggerCsv::log(msg, "/Users/jan.kala/WebTrafficAnnotator/JoinerActionLog.csv", action.c_str());
+    actionLog.log(msg, action.c_str());
 }
 
 void Storage::processMessage(annotator::HttpMessage &msg) {
@@ -78,7 +84,7 @@ void Storage::processMessage(annotator::HttpMessage &msg) {
             break;
         case TlsConnectionPool::NOP:
             action = "!NO MATCH!";
-            LoggerCsv::log(msg, "/Users/jan.kala/WebTrafficAnnotator/JoinerErrorLog.csv", action.c_str());
+            errorLog.log(msg, action.c_str());
             tlsPool.failed++;
             break;
         default:
@@ -86,7 +92,7 @@ void Storage::processMessage(annotator::HttpMessage &msg) {
             break;
     }
 
-    LoggerCsv::log(msg, "/Users/jan.kala/WebTrafficAnnotator/JoinerActionLog.csv", action.c_str());
+    actionLog.log(msg, action.c_str());
 
 //    auto rate = (float(succ) / (float(succ) + float(failed))) * 100;
 //    std::cout << "rate: " << rate << "%" << std::endl;

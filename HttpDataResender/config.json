@@ -1,0 +1,5 @@
+{
+  "HttpDataReSender" : {
+    "domainSocketPath" : "/tmp/HttpDataReSender"
+  }
+}

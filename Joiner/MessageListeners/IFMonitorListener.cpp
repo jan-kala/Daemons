@@ -6,9 +6,10 @@
 #include <iostream>
 
 
-IFMonitorListener::IFMonitorListener(std::string &domainSocketPath, Storage *storage)
-    : ProtobufReceiverBase(domainSocketPath)
+IFMonitorListener::IFMonitorListener(Config &config, Storage *storage)
+    : ProtobufReceiverBase(config, "InterfaceMonitor")
     , storage(storage)
+    , config(config)
 {}
 
 IFMonitorListener::~IFMonitorListener() {

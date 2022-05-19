@@ -6,6 +6,7 @@
 #define HTTPIPJOINER_IFMONITORLISTENER_H
 
 #include "../Utils/ProtobufReceiverBase.h"
+#include "../Utils/Config.h"
 #include "Storage/Storage.h"
 #include <condition_variable>
 #include <thread>
@@ -15,7 +16,7 @@
 
 class IFMonitorListener: ProtobufReceiverBase {
 public:
-    explicit IFMonitorListener(std::string &domainSocketPath, Storage *storage);
+    explicit IFMonitorListener(Config &config, Storage *storage);
     ~IFMonitorListener();
     void run();
 protected:
@@ -25,7 +26,8 @@ protected:
     std::condition_variable worker_cv;
     std::mutex              worker_mutex;
 
-    Storage* storage;
+    Storage*    storage;
+    Config&     config;
 };
 
 

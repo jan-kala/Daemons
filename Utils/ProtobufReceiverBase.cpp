@@ -9,8 +9,12 @@
 #include <iostream>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
-ProtobufReceiverBase::ProtobufReceiverBase(std::string &domainSocketPath) {
-    this->domainSocketPath = domainSocketPath;
+ProtobufReceiverBase::ProtobufReceiverBase(Config &config, const std::string& moduleName)
+    : config(config)
+    , sockFd(0)
+    , acceptSockFd(0)
+{
+    this->domainSocketPath = config.common()[moduleName][CONFIG_KEY_DOMAIN_SOCKET_PATH].get<std::string>();
 }
 
 ProtobufReceiverBase::~ProtobufReceiverBase() {
@@ -26,7 +30,7 @@ void ProtobufReceiverBase::connectSocket() {
     struct sockaddr_un local, remote;
 
     if ( (sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1 ){
-        std::cerr << "Joiner: Failed to create socket" << std::endl;
+        std::cerr << config.moduleName << ": Failed to create socket" << std::endl;
         return;
     }
 
@@ -37,13 +41,13 @@ void ProtobufReceiverBase::connectSocket() {
     unlink(domainSocketPath.c_str());
 
     if (bind(sock, (struct sockaddr*)&local, data_len) == -1){
-        std::cerr << "Joiner: Failed to bind to the socket." << std::endl;
+        std::cerr << config.moduleName << ": Failed to bind to the socket." << std::endl;
         close(sock);
         return;
     }
 
     if (listen(sock, 100) != 0) {
-        std::cerr << "Joiner: Failed to listen()" << std::endl;
+        std::cerr << config.moduleName << ": Failed to listen()" << std::endl;
         close(sock);
         return;
     }
@@ -52,7 +56,7 @@ void ProtobufReceiverBase::connectSocket() {
     u_int sock_len = 0;
     accept_socket = accept(sock, (struct sockaddr*)&remote, &sock_len);
     if ( accept_socket == -1){
-        std::cerr<< "Joiner: Failed to accept()" << std::endl;
+        std::cerr<< config.moduleName << ": Failed to accept()" << std::endl;
         return;
     }
     this->sockFd = sock;
