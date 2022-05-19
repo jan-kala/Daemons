@@ -6,9 +6,11 @@
 #include "../Utils/LoggerCsv.h"
 #include <numeric>
 
-TlsConnectionPool::TlsConnectionPool(std::list<ServerEntry> *serverHistory, std::list<SocketEntry> *socketHistory)
+TlsConnectionPool::TlsConnectionPool(std::list<ServerEntry> *serverHistory, std::list<SocketEntry> *socketHistory,
+                                     std::string archivePath)
     : serverHistory(serverHistory)
     , socketHistory(socketHistory)
+    , archivePath(archivePath)
 {}
 
 TlsConnectionPool::ActionResult
@@ -161,7 +163,7 @@ TlsConnectionPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator ser
         if (server_it->second.sockets.empty()){
             // DEBUG PRINT
             auto entry = server_it->second.serverEntry->getEntryAsJson();
-            server_it->second.serverEntry->print("/Users/jan.kala/WebTrafficAnnotator/FlowArchive.json");
+            server_it->second.serverEntry->print(archivePath.c_str());
 
             // remove server entry
             pool_it->second.erase(server_it);

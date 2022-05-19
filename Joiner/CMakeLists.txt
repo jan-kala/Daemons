@@ -39,8 +39,6 @@ set(Joiner_SRCS
         Dispatcher/Dispatcher.cpp
         Dispatcher/Dispatcher.h
         Storage/HistoryEntries/ListEntryBase.h
-        Storage/ConnectionPools/HttpConnectionPool.cpp
-        Storage/ConnectionPools/HttpConnectionPool.h
         Storage/Storage.cpp)
 
 # =========================================

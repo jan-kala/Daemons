@@ -14,5 +14,6 @@
 // Joiner specific configuration
 #define CONFIG_JOINER_DISPATCHER_IP     "dispatcherIp"
 #define CONFIG_JOINER_DISPATCHER_PORT   "dispatcherPort"
+#define CONFIG_JOINER_ARCHIVE_PATH      "archivePath"
 
 #endif //HTTPDATARESENDER_CONFIGDEFINITIONS_H

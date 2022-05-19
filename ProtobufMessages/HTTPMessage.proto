@@ -26,5 +26,5 @@ message HttpMessage {
     }
     optional int32 serverPort = 9;
 
-    optional string data = 10;
+    optional bytes data = 10;
 }

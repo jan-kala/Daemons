@@ -38,7 +38,7 @@ def main():
 
     sockFd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    sockFd.connect(("127.0.0.1", 50555))
+    sockFd.connect(("127.0.0.1", commPort))
 
     # Send data to Dispatcher
     sockFd.send(data)

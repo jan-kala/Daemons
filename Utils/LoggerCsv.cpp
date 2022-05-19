@@ -25,7 +25,6 @@ LoggerCsv::LoggerCsv(Config &config) {
         } else {
             logFilePath = std::filesystem::path(configLogFilePathLoaded);
         }
-        std::cout << "LOGFILEPATH: " << logFilePath << std::endl;
     }
 }
 

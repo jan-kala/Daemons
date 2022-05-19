@@ -135,8 +135,8 @@ typedef std::map<ServerKey_t, ServerNames_t> Pool_t;
 
 class TlsConnectionPool {
 public:
-    TlsConnectionPool(std::list<ServerEntry> *serverHistory,
-                      std::list<SocketEntry> *socketHistory);
+    TlsConnectionPool(std::list<ServerEntry> *serverHistory, std::list<SocketEntry> *socketHistory,
+                      std::string archivePath);
 
     enum ActionResult {
         ADDED,
@@ -184,6 +184,8 @@ public:
 
     std::list<ServerEntry> *serverHistory;
     std::list<SocketEntry> *socketHistory;
+
+    std::string archivePath;
 
     // stats
     int succ = 0;

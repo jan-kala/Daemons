@@ -5,12 +5,13 @@
 #include "Storage.h"
 
 Storage::Storage(Config& config)
-    : tlsPool(TlsConnectionPool(&serverHistory, &socketHistory))
+    : tlsPool(TlsConnectionPool(&serverHistory, &socketHistory, config[CONFIG_JOINER_ARCHIVE_PATH].get<std::string>()))
     , config(config)
     , actionLog(config)
 {
-    auto errorLogname = std::filesystem::path(std::string(config.moduleName) + "Error").replace_extension("csv");
-    auto errorLogPath = actionLog.logFilePath.replace_filename(errorLogname);
+    auto errorLogName = std::filesystem::path(std::string(config.moduleName) + "Error").replace_extension("csv");
+    auto errorLogPath = actionLog.logFilePath;
+    errorLogPath.replace_filename(errorLogName);
 
     errorLog = LoggerCsv(errorLogPath.string());
     IFMessageQ_mutex.unlock();
