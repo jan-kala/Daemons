@@ -8,6 +8,7 @@
 #include "ConfigDefinitions.h"
 #include <string>
 #include <nlohmann/json.hpp>
+#include <filesystem>
 
 using namespace nlohmann;
 
