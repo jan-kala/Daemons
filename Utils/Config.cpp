@@ -12,9 +12,10 @@ using namespace nlohmann;
 
 Config::Config(char *binaryPath, const char* moduleName)
     : moduleName(moduleName)
-    , binaryPath(std::filesystem::absolute(binaryPath))
-    , projectRootPath(this->binaryPath.parent_path().parent_path())
 {
+    // This is cleanup of the path
+    this->binaryPath = std::filesystem::absolute(std::filesystem::relative(binaryPath, "./") );
+    this->projectRootPath = this->binaryPath.parent_path().parent_path();
     auto configFilePath = projectRootPath / CONFIG_FILE_NAME;
 
     std::ifstream ifs(configFilePath);
