@@ -11,7 +11,7 @@ def main():
         return
 
     # Get the info from arguments
-    commPort = sys.argv[1]
+    commPort = int(sys.argv[1])
     srcIP = sys.argv[2] 
     srcPort = int(sys.argv[3])
     dstIP = sys.argv[4]
