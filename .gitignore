@@ -35,3 +35,4 @@ build/
 .DS_STORE
 .idea/
 cmake-build-debug
+dist

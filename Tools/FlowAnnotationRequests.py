@@ -1,3 +1,5 @@
+# Supporting script for pulling the information from the Joiner&Dispatcher
+
 from ast import Bytes
 import socket
 import struct
@@ -29,15 +31,12 @@ def main():
     jsonMessage= json.dumps(message)
     jsonMessageBytes = jsonMessage.encode("utf-8")
 
-    print(jsonMessageBytes)
-
-    dataSize = struct.pack("I", len(jsonMessageBytes))
+    messageSize = len(jsonMessageBytes)
+    messageSize = socket.htonl(messageSize)
+    dataSize = struct.pack("I", messageSize)
     data = b"".join([dataSize, jsonMessageBytes])
-    print(data)
-
 
     sockFd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
     sockFd.connect(("127.0.0.1", commPort))
 
     # Send data to Dispatcher
@@ -45,6 +44,7 @@ def main():
 
     recvDataLen = sockFd.recv(4)
     recvDataLen = struct.unpack("I", recvDataLen)[0]
+    recvDataLen = socket.ntohl(recvDataLen)
 
     recvData = sockFd.recv(recvDataLen)
     response = json.loads(recvData.decode("utf-8"))
