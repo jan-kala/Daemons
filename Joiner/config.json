@@ -8,7 +8,7 @@
   },
   "Joiner" : {
     "dispatcherIp" : "127.0.0.1",
-    "dispatcherPort" : 50555,
+    "dispatcherPort" : 50559,
     "archivePath" : "/Users/jan.kala/WebTrafficAnnotator/archive.json"
   }
 }

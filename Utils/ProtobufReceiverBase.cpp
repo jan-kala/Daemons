@@ -66,33 +66,41 @@ void ProtobufReceiverBase::connectSocket() {
 template<class T>
 T ProtobufReceiverBase::recvMessage() {
     int dataLen = 0;
-    char lengthBuffer[4];
+    uint32_t lengthBuffer;
 
-    if ((dataLen = recv(this->acceptSockFd, lengthBuffer, 4, MSG_PEEK)) == -1) {
+    dataLen = recv(this->acceptSockFd, &lengthBuffer, 4, 0);
+    if ( dataLen == -1) {
         throw std::runtime_error("Failed to read length of the message");
-    };
+    }
     if (dataLen == 0){
         // Socket has been disconnected
         throw SocketDisconnected();
     }
 
-    // READ header
-    google::protobuf::uint32 size;
-    google::protobuf::io::ArrayInputStream ais(lengthBuffer, 4);
-    google::protobuf::io::CodedInputStream codedInputStream(&ais);
-    codedInputStream.ReadVarint32(&size); // now we have the size
+    // Read size of the message from first 4 bytes
+    auto messageSize = ntohl(lengthBuffer);
 
     // READ rest of the body
-    char payload[size+4];
-    int bytecount;
-    if ((bytecount = recv(this->acceptSockFd, payload, size+4, 0)) == -1){
-        std::cerr<<"Failed to recv()"<<std::endl;
-        throw std::runtime_error("Failed to recv from domain socket.");
+    u_char payload[messageSize];
+
+    dataLen = 0;
+    while (dataLen != messageSize) {
+        auto recvLen = recv(this->acceptSockFd,
+                                payload + dataLen,
+                                messageSize - dataLen,
+                                0);
+
+        if (recvLen == -1) {
+            std::cerr << "Failed to recv()" << std::endl;
+            throw std::runtime_error("Failed to recv from domain socket.");
+        }
+
+        dataLen += recvLen;
     }
-    google::protobuf::io::ArrayInputStream ais2(payload, size+4);
+
+    google::protobuf::io::ArrayInputStream ais2(payload, messageSize);
     google::protobuf::io::CodedInputStream codedInputStream2(&ais2);
-    codedInputStream2.ReadVarint32(&size);
-    google::protobuf::io::CodedInputStream::Limit msgLimit = codedInputStream2.PushLimit(size);
+    google::protobuf::io::CodedInputStream::Limit msgLimit = codedInputStream2.PushLimit(messageSize);
     T message;
     message.ParseFromCodedStream(&codedInputStream2);
     codedInputStream2.PopLimit(msgLimit);

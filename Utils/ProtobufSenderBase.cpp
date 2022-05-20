@@ -8,6 +8,7 @@
 #include <sys/un.h>
 #include <sys/socket.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+#include <fstream>
 
 ProtobufSenderBase::ProtobufSenderBase(Config& config): config(config) {
     this->domainSocketPath = config[CONFIG_KEY_DOMAIN_SOCKET_PATH].get<std::string>();
@@ -41,13 +42,19 @@ void ProtobufSenderBase::connectSocket() {
 
 template<class T>
 void ProtobufSenderBase::protoSend(T& message, int *socket) {
-    size_t payloadSize = message.ByteSizeLong() + 4;
-    char payload[payloadSize];
-    memset(payload, '\0', payloadSize);
-    google::protobuf::io::ArrayOutputStream aos(payload, payloadSize);
-    google::protobuf::io::CodedOutputStream codedOutputStream(&aos);
+    uint32_t messageSize = message.ByteSizeLong();
+    uint32_t payloadSize = messageSize + 4;
 
-    codedOutputStream.WriteVarint32(message.ByteSizeLong());
+    u_char payload[payloadSize];
+    memset(payload, '\0', payloadSize);
+
+    // Save size into payload
+    auto nbo = htonl(messageSize);
+    memcpy(payload, &nbo, 4);
+
+    // Save message into payload
+    google::protobuf::io::ArrayOutputStream aos(payload+4, messageSize);
+    google::protobuf::io::CodedOutputStream codedOutputStream(&aos);
     message.SerializeToCodedStream(&codedOutputStream);
 
     if (send(*socket, payload, payloadSize, 0) < 0){

@@ -6,6 +6,7 @@
 #include "../Utils/LoggerCsv.h"
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <fstream>
 
 HttpDataReSender::HttpDataReSender(Config &config) : logger(config), ProtobufSenderBase(config), config(config)
 {
@@ -44,6 +45,7 @@ HttpDataReSender::getNativeMessage() {
     // Now read the whole message
     char message[msg_length];
     fread(message, msg_length, sizeof(char), stdin);
+
     std::string m(message, message + sizeof(message) / sizeof(message[0]));
     return json::parse(m);
 }

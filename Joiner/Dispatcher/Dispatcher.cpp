@@ -86,10 +86,9 @@ void Dispatcher::dispatchRequest() {
 
 std::string Dispatcher::readRequest(int acceptSocket) {
     size_t dataLen = 0;
-    u_char lenBuffer[4] ;
+    uint32_t lenBuffer;
 
-
-    dataLen = recv(acceptSocket, lenBuffer, 4, 0);
+    dataLen = recv(acceptSocket, &lenBuffer, 4, 0);
     if (dataLen == -1){
         throw std::runtime_error("Failed to recv message in dispatcher!");
     }
@@ -99,11 +98,24 @@ std::string Dispatcher::readRequest(int acceptSocket) {
         throw SocketDisconnected();
     }
 
-    auto messageSize = (uint32_t)*lenBuffer;
+    auto messageSize = ntohl(lenBuffer);
     char messageBuffer[messageSize];
     memset(messageBuffer, '\0', messageSize);
 
-    dataLen = recv(acceptSocket, messageBuffer, messageSize, 0);
+    dataLen = 0;
+    while (dataLen != messageSize) {
+        auto recvLen = recv(acceptSocket,
+                            messageBuffer + dataLen,
+                            messageSize - dataLen,
+                            0);
+
+        if (recvLen == -1) {
+            std::cerr << "Failed to recv()" << std::endl;
+            throw std::runtime_error("Failed to recv from domain socket.");
+        }
+
+        dataLen += recvLen;
+    }
 
     return {messageBuffer, messageSize};
 }
@@ -133,12 +145,16 @@ json Dispatcher::processRequest(json &request) {
 
 void Dispatcher::sendResponse(int acceptSocket, json response) {
     auto responseString = response.dump();
+
+    uint32_t messageSize = responseString.length();
     size_t payloadSize = responseString.length() + 4;
+
     char payload[payloadSize];
     memset(payload, '\0', payloadSize);
 
-    memcpy(payload, (char *)&payloadSize, 4);
-    memcpy(payload+4, responseString.data(), responseString.length());
+    auto nbo = htonl(messageSize);
+    memcpy(payload, &nbo, 4);
+    memcpy(payload+4, responseString.data(), messageSize);
 
     if (send(acceptSocket, payload, payloadSize, 0) < 0) {
         throw SendMessageFailed();

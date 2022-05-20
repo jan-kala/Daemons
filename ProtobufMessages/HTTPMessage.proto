@@ -17,14 +17,14 @@ message HttpMessage {
         HTTP = 0;
         TLS = 1;
     }
-    optional RequestProtocol protocol = 4;
-    optional string hostname = 5;
-    optional uint32 ipVersion = 6;
+    optional RequestProtocol protocol = 3;
+    optional string hostname = 4;
+    optional uint32 ipVersion = 5;
     oneof serverIp {
-        fixed32 serverIpV4 = 7;
-        bytes   serverIpV6 = 8;
+        fixed32 serverIpV4 = 6;
+        bytes   serverIpV6 = 7;
     }
-    optional int32 serverPort = 9;
+    optional int32 serverPort = 8;
 
-    optional bytes data = 10;
+    optional bytes data = 9;
 }
