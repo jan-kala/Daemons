@@ -3,6 +3,7 @@
 //
 
 #include "Dispatcher.h"
+#include <unistd.h>
 
 Dispatcher::Dispatcher(Config& config, Storage *storage)
     : storage(storage)
@@ -81,6 +82,8 @@ void Dispatcher::dispatchRequest() {
     json jsonMessage = json::parse(strMessage);
     auto response = processRequest(jsonMessage);
     sendResponse(acceptSocket, response);
+
+    close(acceptSocket);
 
 }
 

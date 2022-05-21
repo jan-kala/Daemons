@@ -95,8 +95,8 @@ void Storage::processMessage(annotator::HttpMessage &msg) {
 
     actionLog.log(msg, action.c_str());
 
-//    auto rate = (float(succ) / (float(succ) + float(failed))) * 100;
-//    std::cout << "rate: " << rate << "%" << std::endl;
+    auto rate = (float(tlsPool.succ) / (float(tlsPool.succ) + float(tlsPool.failed))) * 100;
+    std::cout << "rate: " << rate << "% [succ: " << tlsPool.succ << ", failed: " << tlsPool.failed << "]" << std::endl;
 }
 
 
