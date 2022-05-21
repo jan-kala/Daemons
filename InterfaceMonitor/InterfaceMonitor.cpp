@@ -33,15 +33,7 @@
     "or "                     \
     "((tcp[tcpflags] & tcp-rst) != 0) " \
     "or "                     \
-    "(tcp and ip6[13+40]&0x04 != 0) " \
-    "or "                     \
-    "(tcp[tcp[12]/16*4]=22 and (tcp[tcp[12]/16*4+5]=1) and (tcp[tcp[12]/16*4+9]=3) and (tcp[tcp[12]/16*4+1]=3)) " \
-    "or " \
-    "(ip6[(ip6[52]/16*4)+40]=22 and (ip6[(ip6[52]/16*4+5)+40]=1) and (ip6[(ip6[52]/16*4+9)+40]=3) and (ip6[(ip6[52]/16*4+1)+40]=3)) " \
-    "or " \
-    "((udp[14] = 6 and udp[16] = 32 and udp[17] = 1) and ((udp[(udp[60]/16*4)+48]=22) and (udp[(udp[60]/16*4)+53]=1) and (udp[(udp[60]/16*4)+57]=3) and (udp[(udp[60]/16*4)+49]=3))) " \
-    "or " \
-    "(proto 41 and ip[26] = 6 and ip[(ip[72]/16*4)+60]=22 and (ip[(ip[72]/16*4+5)+60]=1) and (ip[(ip[72]/16*4+9)+60]=3) and (ip[(ip[72]/16*4+1)+60]=3)) " \
+    "(tcp and ip6[13+40]&0x04 != 0) "   \
     "or "  \
     "(tcp and tcp[32:4] =  0x47455420) " \
     "or "  \
@@ -49,7 +41,15 @@
     "or "  \
     "(tcp and tcp[32:4] =  0x504F5354 and tcp[36] = 0x20 ) " \
     "or " \
-    "(tcp and ip6[72:4] =  0x504F5354 and tcp[76] = 0x20 ) "
+    "(tcp and ip6[72:4] =  0x504F5354 and tcp[76] = 0x20 ) "                          \
+    "or "                     \
+    "(tcp[tcp[12]/16*4]=22 and (tcp[tcp[12]/16*4+5]=1) and (tcp[tcp[12]/16*4+9]=3) and (tcp[tcp[12]/16*4+1]=3)) " \
+    "or " \
+    "(ip6[(ip6[52]/16*4)+40]=22 and (ip6[(ip6[52]/16*4+5)+40]=1) and (ip6[(ip6[52]/16*4+9)+40]=3) and (ip6[(ip6[52]/16*4+1)+40]=3)) " \
+    "or " \
+    "((udp[14] = 6 and udp[16] = 32 and udp[17] = 1) and ((udp[(udp[60]/16*4)+48]=22) and (udp[(udp[60]/16*4)+53]=1) and (udp[(udp[60]/16*4)+57]=3) and (udp[(udp[60]/16*4)+49]=3))) " \
+    "or " \
+    "(proto 41 and ip[26] = 6 and ip[(ip[72]/16*4)+60]=22 and (ip[(ip[72]/16*4+5)+60]=1) and (ip[(ip[72]/16*4+9)+60]=3) and (ip[(ip[72]/16*4+1)+60]=3)) "
 int
 InterfaceMonitor::run() {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -59,7 +59,18 @@ InterfaceMonitor::run() {
         return IFMONITOR_RETURN_ERROR;
     }
 
-    pcap_t* handle = pcap_create(devList[0].name, errbuf);
+    char *deviceName = nullptr;
+    auto device = devList;
+
+    while (deviceName == nullptr && device != nullptr){
+        if ((device->flags & PCAP_IF_CONNECTION_STATUS) == PCAP_IF_CONNECTION_STATUS_CONNECTED){
+            deviceName = device->name;
+        }
+        device = device->next;
+
+    }
+
+    pcap_t* handle = pcap_create(deviceName, errbuf);
     if (handle == nullptr){
         std::cerr << "Failed to create handle for capture: " << errbuf << std::endl;
         return IFMONITOR_RETURN_ERROR;

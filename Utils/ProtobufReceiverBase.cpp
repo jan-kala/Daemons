@@ -8,6 +8,7 @@
 #include <sys/un.h>
 #include <iostream>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
+#include <arpa/inet.h>
 
 ProtobufReceiverBase::ProtobufReceiverBase(Config &config, const std::string& moduleName)
     : config(config)

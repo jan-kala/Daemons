@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <fstream>
+#include <arpa/inet.h>
 
 ProtobufSenderBase::ProtobufSenderBase(Config& config): config(config) {
     this->domainSocketPath = config[CONFIG_KEY_DOMAIN_SOCKET_PATH].get<std::string>();
