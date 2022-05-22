@@ -6,6 +6,7 @@
 #define HTTPIPJOINER_SOCKETENTRY_H
 
 #include "ListEntryBase.h"
+#include "../ProtobufMessages/build/HTTPMessage.pb.h"
 #include <list>
 #include <arpa/inet.h>
 #include <string>
@@ -41,6 +42,7 @@ public:
     uint64_t ts_end = 0;
 
     ListEntryBase* serverEntry;
+    std::vector<annotator::HttpMessage *> requests;
 
     bool operator==(const SocketFindRequest &sock) const {
         bool isActive = ts_end == 0;
@@ -69,7 +71,6 @@ public:
     }
 
     json getEntryAsJson() override;
-    void print(const char *outputFile) override;
     static SocketEntry proto2socketEntry(annotator::IFMessage &msg);
 };
 

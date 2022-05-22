@@ -89,6 +89,18 @@ TlsConnectionPool::addHttpRequestToServer(annotator::HttpMessage &msg){
     auto serverConnection = findServerConnection(msg);
     if (serverConnection){
         serverConnection->serverEntry->requests.push_back(msg);
+        // Add requests to the archive
+        serverConnection->serverEntry->requests_new.push_back(msg);
+        auto archivedRequest = &serverConnection->serverEntry->requests_new.back();
+
+        // Links request with the currently active connections
+        for (auto socket: serverConnection->serverEntry->sockets){
+            auto socketEntry = (SocketEntry *)socket;
+            if (socketEntry->ts_end == 0) {
+                // socket is active
+                socketEntry->requests.push_back(archivedRequest);
+            }
+        }
         return PAIRED;
     }
     return NOP;
@@ -157,7 +169,7 @@ TlsConnectionPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator ser
         server_it != pool_it->second.end() &&
         socket_it != server_it->second.sockets.end()) {
 
-        // remove closed connection from vector
+        // remove closed connection from pool
         server_it->second.sockets.erase(socket_it);
 
         if (server_it->second.sockets.empty()){

@@ -8,6 +8,7 @@
 #include "ListEntryBase.h"
 #include "../../ProtobufMessages/build/HTTPMessage.pb.h"
 #include <nlohmann/json.hpp>
+#include <list>
 
 using namespace nlohmann;
 
@@ -17,9 +18,9 @@ public:
     std::string serverNameIndicator;
     std::vector<ListEntryBase *> sockets;
     std::vector<annotator::HttpMessage> requests;
+    std::list<annotator::HttpMessage> requests_new;
 
     json getEntryAsJson() override;
-//    void print(const char *outputFile) override;
     static ServerEntry proto2serverEntry(annotator::IFMessage &msg);
 };
 

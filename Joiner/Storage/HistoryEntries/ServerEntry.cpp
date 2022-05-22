@@ -12,7 +12,9 @@ ServerEntry::getEntryAsJson() {
     out["serverNameIndication"] = serverNameIndicator;
     json sockConnsOut;
     for (auto it : sockets){
-        sockConnsOut.push_back(it->getEntryAsJson());
+        auto sockEntryJson = it->getEntryAsJson();
+        sockEntryJson.erase("requests"); // We don't want to duplicate things
+        sockConnsOut.push_back(sockEntryJson);
     }
     json requestsOut;
     for (auto it : requests){
@@ -23,22 +25,6 @@ ServerEntry::getEntryAsJson() {
     out["httpRequests"] = requestsOut;
     return out;
 }
-
-//void ServerEntry::print(const char *outputFile) {
-//    // We don't care about connections without any requests
-//    if (requests.empty()){
-//        return;
-//    }
-//
-//    std::cout << serverNameIndicator << std::endl;
-//    for (auto it : sockets){
-//        // hmmmm
-////        SocketConnectionList::print(it);
-//    }
-//    for (auto it : requests){
-//        std::cout << "  r-> " << it.data() << std::endl;
-//    }
-//}
 
 ServerEntry
 ServerEntry::proto2serverEntry(annotator::IFMessage &msg){

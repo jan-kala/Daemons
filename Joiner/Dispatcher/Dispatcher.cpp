@@ -139,7 +139,7 @@ json Dispatcher::processRequest(json &request) {
                         storage->socketHistory.end(),
                         sockToFind);
     if (it!= storage->socketHistory.end()){
-        return it->serverEntry->getEntryAsJson();
+        return it->getEntryAsJson();
     } else {
         return R"({"error":"not found"})"_json;
     }
