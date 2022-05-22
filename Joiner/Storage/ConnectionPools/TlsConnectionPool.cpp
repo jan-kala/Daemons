@@ -88,10 +88,10 @@ TlsConnectionPool::ActionResult
 TlsConnectionPool::addHttpRequestToServer(annotator::HttpMessage &msg){
     auto serverConnection = findServerConnection(msg);
     if (serverConnection){
-        serverConnection->serverEntry->requests.push_back(msg);
+
         // Add requests to the archive
-        serverConnection->serverEntry->requests_new.push_back(msg);
-        auto archivedRequest = &serverConnection->serverEntry->requests_new.back();
+        serverConnection->serverEntry->requests.push_back(msg);
+        auto archivedRequest = &serverConnection->serverEntry->requests.back();
 
         // Links request with the currently active connections
         for (auto socket: serverConnection->serverEntry->sockets){
@@ -173,9 +173,10 @@ TlsConnectionPool::remove(Pool_t ::iterator pool_it, ServerNames_t::iterator ser
         server_it->second.sockets.erase(socket_it);
 
         if (server_it->second.sockets.empty()){
-            // DEBUG PRINT
-            auto entry = server_it->second.serverEntry->getEntryAsJson();
-            server_it->second.serverEntry->print(archivePath.c_str());
+            // Archive server entry if it has some HTTP communication
+            if (!server_it->second.serverEntry->requests.empty()) {
+                server_it->second.serverEntry->print(archivePath.c_str());
+            }
 
             // remove server entry
             pool_it->second.erase(server_it);

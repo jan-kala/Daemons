@@ -17,8 +17,7 @@ class ServerEntry : public ListEntryBase{
 public:
     std::string serverNameIndicator;
     std::vector<ListEntryBase *> sockets;
-    std::vector<annotator::HttpMessage> requests;
-    std::list<annotator::HttpMessage> requests_new;
+    std::list<annotator::HttpMessage> requests;
 
     json getEntryAsJson() override;
     static ServerEntry proto2serverEntry(annotator::IFMessage &msg);

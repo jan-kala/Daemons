@@ -37,7 +37,7 @@ SocketEntry::getEntryAsJson(){
         {"srcPort", srcPort},
         {"dstIp", dstIP},
         {"dstPort", dstPort},
-        {"requests", requestsOut}
+        {"communication", requestsOut}
     };
 }
 

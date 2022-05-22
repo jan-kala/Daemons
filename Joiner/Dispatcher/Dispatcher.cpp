@@ -139,7 +139,8 @@ json Dispatcher::processRequest(json &request) {
                         storage->socketHistory.end(),
                         sockToFind);
     if (it!= storage->socketHistory.end()){
-        return it->getEntryAsJson();
+        // send empty json as a sign of no data if no communications are available
+        return it->requests.empty() ? json() :  it->getEntryAsJson();
     } else {
         return R"({"error":"not found"})"_json;
     }
