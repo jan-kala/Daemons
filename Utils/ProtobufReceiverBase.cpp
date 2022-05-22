@@ -31,7 +31,7 @@ void ProtobufReceiverBase::connectSocket() {
     struct sockaddr_un local, remote;
 
     if ( (sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1 ){
-        std::cerr << config.moduleName << ": Failed to create socket" << std::endl;
+        std::cerr << config.moduleName << ": Failed to create socket. [errno: " << errno << "]" << std::endl;
         return;
     }
 
@@ -42,13 +42,13 @@ void ProtobufReceiverBase::connectSocket() {
     unlink(domainSocketPath.c_str());
 
     if (bind(sock, (struct sockaddr*)&local, data_len) == -1){
-        std::cerr << config.moduleName << ": Failed to bind to the socket." << std::endl;
+        std::cerr << config.moduleName << ": Failed to bind to the domain socket. [errno: " << errno << "]" << std::endl;
         close(sock);
         return;
     }
 
     if (listen(sock, 100) != 0) {
-        std::cerr << config.moduleName << ": Failed to listen()" << std::endl;
+        std::cerr << config.moduleName << ": Failed to listen(). [errno: " << errno << "]" << std::endl;
         close(sock);
         return;
     }

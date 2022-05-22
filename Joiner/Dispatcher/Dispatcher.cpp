@@ -36,12 +36,12 @@ void Dispatcher::worker() {
 void Dispatcher::createSocket() {
     int newSockFd = socket(AF_INET, SOCK_STREAM, 0);
     if (newSockFd == 0) {
-        throw std::runtime_error("Failed to create dispatcher socket!");
+        throw std::runtime_error("Dispatcher: Failed to create dispatcher socket!");
     }
 
     int opt = 1;
     if (setsockopt(newSockFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))){
-        throw std::runtime_error("Failed to set socket options!");
+        throw std::runtime_error("Dispatcher: Failed to set socket options!");
     }
 
     auto port = config[CONFIG_JOINER_DISPATCHER_PORT].get<uint32_t>();
@@ -53,7 +53,7 @@ void Dispatcher::createSocket() {
     addr.sin_port = htons(port);
 
     if (bind(newSockFd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
-        throw std::runtime_error("Failed to bind socket!");
+        throw std::runtime_error("Dispatcher: Failed to bind to the socket!");
     }
 
     sockFd = newSockFd;
@@ -62,21 +62,21 @@ void Dispatcher::createSocket() {
 void Dispatcher::dispatchRequest() {
 
     if (listen(sockFd, 100) < 0) {
-        throw std::runtime_error("Failed to listen for requests!");
+        throw std::runtime_error("Dispatcher: Failed to listen for requests!");
     }
 
     struct sockaddr_in addr = {};
     int addrLen = sizeof(addr);
     auto acceptSocket = accept(sockFd, (struct sockaddr*)&addr, (socklen_t*)&addrLen);
     if (acceptSocket < 0){
-        throw std::runtime_error("Failed to create communication socket!");
+        throw std::runtime_error("Dispatcher: Failed to create communication socket!");
     }
 
     std::string strMessage;
     try {
         strMessage = readRequest(acceptSocket);
     } catch (SocketDisconnected& e){
-        std::cerr<<"Request hasn't been dispatched, client disconnected." << std::endl;
+        std::cerr<<"Dispatcher: Request hasn't been dispatched, client disconnected." << std::endl;
         return;
     }
     json jsonMessage = json::parse(strMessage);
