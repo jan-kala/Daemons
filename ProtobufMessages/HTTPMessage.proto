@@ -3,7 +3,7 @@ syntax = "proto2";
 package annotator;
 
 message HttpMessage {
-    // TODO I probably need only Pairing
+
     enum MessageType {
         PAIRING = 0;
         DATA_ASSIGNMENT = 1;

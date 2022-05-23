@@ -16,7 +16,7 @@
  *
  * Contains TLS filter for capturing Client Hello messages,
  * that has SNI set.
- * Filter is taken from https://gist.github.com/LeeBrotherston/92cc2637f33468485b8f
+ * TLS Filter (last 4 lines) is taken from https://gist.github.com/LeeBrotherston/92cc2637f33468485b8f
  *
  * ipv4 tcp FIN is set
  * ipv6 tcp FIN is set

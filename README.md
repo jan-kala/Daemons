@@ -21,7 +21,7 @@ Easiest way to compile al of the deamons. This tool creates *build* folder in su
 
 After succesfull run, you can grab the whole *dist* directory and move it to your desired location for easier use.
 
-## Separate compilation
+## Manual compilation
 Each subdirectory is a separate CMake project that can be compiled independently. There is only one exception - *ProtobufMessages* folder, that is being shared with all of the projects. In this directory **you must create** build folder with name **`build`** and no other name. This is because the files in the build folder are included in the sources of other daemons. 
 
 With this compulsory step in mind, you can just do this fol all the subdirectories:

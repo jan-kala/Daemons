@@ -3,14 +3,6 @@ cmake_minimum_required(VERSION 3.0.0)
 project(Joiner)
 
 # Dependencies
-include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules/CPM.cmake)
-
-## Downloading whole package takes too much space
-#CPMAddPackage(
-#        NAME nlohmann_json
-#        GITHUB_REPOSITORY nlohmann/json
-#        VERSION 3.9.1)
-
 find_package(nlohmann_json 3.2.0 REQUIRED)
 find_package(Protobuf REQUIRED)
 message(STATUS "Using Protocol Buffers ${protobuf_VERSION}")

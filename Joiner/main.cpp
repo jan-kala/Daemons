@@ -25,6 +25,7 @@ int main(int argc, char** argv) {
     dispatcher.run();
 
     while (true) {
+        // runloop - might be improved
         sleep(10);
     }
 }

@@ -36,3 +36,5 @@ build/
 .idea/
 cmake-build-debug
 dist
+
+config.json
